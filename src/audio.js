@@ -163,6 +163,7 @@ const AudioEngine = {
     this.track = TRACKS[name] || null;
     this.step = 0;
     if (this.track) {
+      // beatDiv 2 = un pas per corxera; bpm = negra (♩) per minut (ex. Mendelssohn ♩=96).
       this.stepDur = 60 / (this.track.bpm * (this.track.beatDiv || 4));
       if (!this.ensureCtx()) return;
       if (this.started) {
@@ -364,10 +365,10 @@ const TRACKS = {
     bass: ['C3', _, _, _, 'A2', _, _, _, 'F2', _, _, _, 'G2', _, _, _],
     drum: ['h', _, _, _, _, _, _, _, 'h', _, _, _, _, _, _, _],
   },
-  /* Mendelssohn — Marxa nupcial (Op. 61), melodia principal en corxeres */
+  /* Mendelssohn Op. 61 — ♩=96 (arranjament piano habitual), corxeres al motor */
   wedding: {
-    bpm: 108, beatDiv: 2, len: 64, vol: 0.72,
-    leadWave: 'sine', leadLen: 1.05, leadGain: 0.36, brass: false,
+    bpm: 96, beatDiv: 2, len: 64, vol: 0.72,
+    leadWave: 'sine', leadLen: 1.15, leadGain: 0.36, brass: false,
     harmWave: 'triangle', harmGain: 0.09, bassGain: 0.24, bassWave: 'triangle',
     lead: [
       'C4', 'C4', 'C4', 'C4', _, _, _, _, _, _, _, _, 'C4', 'C4', 'C4', 'C4',
@@ -410,8 +411,8 @@ const TRACKS = {
     ],
   },
   weddingEnd: {
-    bpm: 92, beatDiv: 2, len: 32, vol: 0.65,
-    leadWave: 'sine', leadLen: 1.15, leadGain: 0.3, brass: false,
+    bpm: 80, beatDiv: 2, len: 32, vol: 0.65,
+    leadWave: 'sine', leadLen: 1.25, leadGain: 0.3, brass: false,
     harmWave: 'triangle', harmGain: 0.07, bassGain: 0.18,
     lead: [
       'C4', 'C4', 'C4', 'C4', _, _, _, _, _, _, _, _, 'C4', 'C4', 'C4', 'C4',
