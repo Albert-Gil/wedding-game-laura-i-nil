@@ -1,11 +1,26 @@
 /* =====================================================================
-   MarriageOS / Laura ❤ Nil — NUCLI DEL MOTOR
+   LauraiNilOS / Laura ❤ Nil — NUCLI DEL MOTOR
    Resolució virtual + bucle de joc + gestor d'escenes + utilitats.
    ===================================================================== */
 
-// Resolució interna (pixel-art). Es reescala a la pantalla amb nitidesa.
-const VW = 384;
-const VH = 216;
+// Resolució interna (es reescala a la pantalla; base de disseny 384×216).
+const BASE_W = 384;
+const BASE_H = 216;
+const VW = 960;
+const VH = 540;
+const S = VW / BASE_W;       // 2.5× — joc, personatges, UI
+const S_OS = 3.5;            // 3.5× — terminal LauraiNilOS (més llegible)
+
+// Velocitat de caminar dels personatges (px/s, espai de joc)
+const HERO_SPEED = 90;       // nivells 1–2 (abans 78)
+const HERO_SPEED_MID = 97;   // nivell 3 (abans 84)
+const HERO_SPEED_FAST = 106; // nivell 4 (abans 92)
+const HERO_SPEED_COOP = 82;  // caminada final (abans 70)
+const HERO_SPEED_COOP_Y = 58;
+const HERO_SPEED_BOSS = 128; // batalla final (abans 110)
+
+function fs(n) { return Math.round(n * S); }
+function fso(n) { return Math.round(n * S_OS); }
 
 const view = {
   canvas: null,
@@ -106,6 +121,7 @@ const SM = {
     this.current = Scenes[name]();
     this.currentName = name;
     if (this.current.enter) this.current.enter(opts || {});
+    if (window.AudioEngine) AudioEngine.resume();
     this.fade = 1; this.fadeDir = -1;
   },
 
@@ -128,6 +144,7 @@ const SM = {
           this.current = Scenes[name]();
           this.currentName = name;
           if (this.current.enter) this.current.enter(opts);
+          if (window.AudioEngine) AudioEngine.resume();
           this.fadeDir = -1;
         } else {
           this.fadeDir = 0;
@@ -191,8 +208,8 @@ function bootEngine(firstScene) {
     let dt = (now - last) / 1000;
     last = now;
     if (dt > 0.05) dt = 0.05; // evita salts grans en canviar de pestanya
-    if (window.AudioEngine) AudioEngine.update(dt);
     SM.update(dt);
+    if (window.AudioEngine) AudioEngine.update();
     if (window.Achievements) Achievements.update(dt);
     SM.render(view.ctx);
     if (window.Achievements) Achievements.renderToasts(view.ctx);
@@ -205,11 +222,14 @@ function bootEngine(firstScene) {
 // Helpers de dibuix de text reutilitzables.
 // ---------------------------------------------------------------------
 function drawText(ctx, txt, x, y, opts = {}) {
-  ctx.font = `${opts.size || 8}px ${opts.font || '"Courier New", monospace'}`;
+  const size = opts.raw ? (opts.size || 8) : (opts.os ? fso(opts.size || 8) : fs(opts.size || 8));
+  const sx = opts.raw ? (opts.sx || 1) : fs(opts.sx || 1);
+  const sy = opts.raw ? (opts.sy || 1) : fs(opts.sy || 1);
+  ctx.font = `${size}px ${opts.font || '"Courier New", ui-monospace, monospace'}`;
   ctx.textAlign = opts.align || 'left';
   if (opts.shadow) {
     ctx.fillStyle = opts.shadow;
-    ctx.fillText(txt, x + (opts.sx || 1), y + (opts.sy || 1));
+    ctx.fillText(txt, x + sx, y + sy);
   }
   ctx.fillStyle = opts.color || '#fff';
   ctx.fillText(txt, x, y);

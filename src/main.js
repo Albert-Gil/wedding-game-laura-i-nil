@@ -1,12 +1,22 @@
 /* =====================================================================
-   MAIN — arrencada de MarriageOS / Laura ❤ Nil
+   MAIN — arrencada de LauraiNilOS / Laura ❤ Nil
    ===================================================================== */
 
+function unlockAudio() {
+  AudioEngine.ensureCtx();
+  AudioEngine.resume();
+}
 window.addEventListener('load', () => {
   Achievements.load();
   AudioEngine.init();
   bootEngine('boot');     // defineix view + bucle
   Input.init();           // necessita view.canvas ja creat
+  // Desbloqueig d'àudio (política del navegador): qualsevol interacció.
+  ['pointerdown', 'keydown', 'touchstart', 'click'].forEach((ev) => {
+    document.addEventListener(ev, unlockAudio, { capture: true, passive: true });
+  });
+  const cv = document.getElementById('game');
+  if (cv) cv.addEventListener('click', unlockAudio, { passive: true });
 
   // Pista "toca per continuar" només en tàctil i durant escenes passives.
   const hint = document.getElementById('tapHint');

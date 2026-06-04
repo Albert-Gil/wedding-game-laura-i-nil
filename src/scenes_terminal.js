@@ -1,5 +1,5 @@
 /* =====================================================================
-   ESCENES DE TERMINAL — MarriageOS
+   ESCENES DE TERMINAL — LauraiNilOS
    Fase 1 (boot + simulació), retorn final, revelació del regal, missatge.
    ===================================================================== */
 
@@ -24,6 +24,8 @@ const step = {
   blank: () => ({ type: 'line', text: '', color: T.green }),
   fn: (fn) => ({ type: 'fn', fn }),
   prompt: (text) => ({ type: 'prompt', text }),
+  /** Atura fins que l'usuari cliqui o premi una tecla. */
+  pause: (text) => ({ type: 'prompt', text: text || '[ Clica o prem una tecla per continuar ]' }),
   go: (scene, opts, speed) => ({ type: 'go', scene, opts, speed }),
 };
 
@@ -44,7 +46,7 @@ class TerminalRunner {
     this.glitch = 0;
     this.waitingInput = false;
     this.promptText = '';
-    this.defSpeed = cfg.speed || 55;
+    this.defSpeed = cfg.speed || 38; // caràcters/segon (més lent = més llegible)
     this.scan = cfg.scan !== false;
     this.done = false;
     this._advance();
@@ -63,7 +65,14 @@ class TerminalRunner {
         break;
       case 'wait': this.state = 'wait'; this.timer = s.d; break;
       case 'bar': this.bar = { label: s.label, t: 0, d: s.d, color: s.color }; this.state = 'bar'; break;
-      case 'big': this.big = { text: s.text, color: s.color, t: 0, d: s.d, size: s.size }; this.state = 'big'; AudioEngine.sfx('confirm'); break;
+      case 'big':
+        this.big = {
+          text: s.text, color: s.color, t: 0, d: s.d, size: s.size,
+          waitClick: !!s.click, clickText: s.clickText,
+        };
+        this.state = 'big';
+        AudioEngine.sfx('confirm');
+        break;
       case 'clear': this.lines = []; this._advance(); break;
       case 'glitch': this.glitch = s.d; this.state = 'glitch'; this.timer = s.d; AudioEngine.sfx('glitch'); break;
       case 'fn': try { s.fn(); } catch (e) {} this._advance(); break;
@@ -80,7 +89,14 @@ class TerminalRunner {
     if (this.state === 'wait') { this.timer = 0; return; }
     if (this.state === 'bar' && this.bar) { this.bar.t = this.bar.d; return; }
     if (this.state === 'big' && this.big) { this.big.t = this.big.d; return; }
-    if (this.state === 'prompt') { this.waitingInput = false; AudioEngine.sfx('confirm'); this._advance(); return; }
+    if (this.state === 'prompt') {
+      this.waitingInput = false;
+      if (this.big && this.big.waitClick) this.big = null;
+      AudioEngine.resume();
+      AudioEngine.sfx('confirm');
+      this._advance();
+      return;
+    }
   }
 
   update(dt) {
@@ -113,7 +129,15 @@ class TerminalRunner {
         break;
       case 'big':
         this.big.t += dt;
-        if (this.big.t >= this.big.d) { this.big = null; this._advance(); }
+        if (this.big.t >= this.big.d) {
+          if (this.big.waitClick) {
+            this.state = 'prompt';
+            this.promptText = this.big.clickText || '[ Clica o prem una tecla per continuar ]';
+          } else {
+            this.big = null;
+            this._advance();
+          }
+        }
         break;
       case 'glitch':
         this.timer -= dt;
@@ -122,89 +146,173 @@ class TerminalRunner {
     }
   }
 
+  _wrapText(ctx, text, maxW) {
+    if (!text) return [''];
+    if (ctx.measureText(text).width <= maxW) return [text];
+    const out = [];
+    let line = '';
+    const words = text.split(/\s+/).filter(Boolean);
+    for (const word of words) {
+      const tryLine = line ? `${line} ${word}` : word;
+      if (ctx.measureText(tryLine).width <= maxW) {
+        line = tryLine;
+        continue;
+      }
+      if (line) out.push(line);
+      if (ctx.measureText(word).width <= maxW) {
+        line = word;
+        continue;
+      }
+      let chunk = '';
+      for (const ch of word) {
+        const next = chunk + ch;
+        if (chunk && ctx.measureText(next).width > maxW) {
+          out.push(chunk);
+          chunk = ch;
+        } else chunk = next;
+      }
+      line = chunk;
+    }
+    if (line) out.push(line);
+    return out.length ? out : [''];
+  }
+
+  _layoutLines(ctx, fontStr, padX, statusPad, gx) {
+    ctx.font = fontStr;
+    const visual = [];
+    for (const l of this.lines) {
+      const indent = l.indent ? fso(l.indent) : 0;
+      const lx = padX + indent + gx;
+      const txt = l.full.substring(0, Math.floor(l.reveal));
+      let maxW = VW - padX * 2 - indent;
+      let statusOnLast = false;
+      if (l.status) {
+        const statusW = ctx.measureText(l.status).width;
+        maxW = VW - padX * 2 - indent - statusW - statusPad;
+        statusOnLast = l.done;
+      }
+      const rows = this._wrapText(ctx, txt, maxW);
+      rows.forEach((row, i) => {
+        visual.push({
+          text: row,
+          color: l.color,
+          lx,
+          status: statusOnLast && i === rows.length - 1 ? l.status : null,
+          statusColor: l.statusColor,
+          logical: l,
+        });
+      });
+    }
+    return visual;
+  }
+
   render(ctx) {
-    // fons
+    const smooth = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = true;
+
     ctx.fillStyle = '#02050a';
     ctx.fillRect(0, 0, VW, VH);
+    if (this.scan) drawCRT(ctx, this.glitch, true);
 
-    // glitch: desplaçaments aleatoris
-    const gx = this.glitch > 0 ? U.randInt(-6, 6) : 0;
-
-    // línies (auto-scroll a la part inferior visible)
-    const lh = 11;
-    const marginTop = 16, marginBottom = this.state === 'prompt' ? 34 : 12;
-    const maxLines = Math.floor((VH - marginTop - marginBottom) / lh);
-    const visible = this.lines.slice(-maxLines);
+    const gx = this.glitch > 0 ? U.randInt(-fso(6), fso(6)) : 0;
+    const fontPx = fso(9);
+    const lh = fso(16);
+    const marginTop = fso(18);
+    const marginBottom = this.state === 'prompt' ? fso(40) : fso(14);
+    const padX = fso(14);
+    const statusPad = fso(8);
+    const fontStr = `${fontPx}px "Courier New", ui-monospace, monospace`;
+    const maxRows = Math.floor((VH - marginTop - marginBottom) / lh);
+    const visual = this._layoutLines(ctx, fontStr, padX, statusPad, gx).slice(-maxRows);
     let y = marginTop;
-    ctx.textAlign = 'left';
-    for (const l of visible) {
-      const txt = l.full.substring(0, Math.floor(l.reveal));
-      const jit = this.glitch > 0 && U.chance(0.3) ? U.randInt(-3, 3) : 0;
-      drawText(ctx, txt, 14 + (l.indent || 0) + jit + gx, y, { size: 9, color: l.color });
-      // estat a la dreta quan la línia està completa
-      if (l.done && l.status) {
-        const sx = VW - 18;
-        drawText(ctx, l.status, sx, y, { size: 9, color: l.statusColor, align: 'right' });
+
+    ctx.textBaseline = 'middle';
+    ctx.font = fontStr;
+
+    for (const row of visual) {
+      const jit = this.glitch > 0 && U.chance(0.3) ? U.randInt(-fso(2), fso(2)) : 0;
+      ctx.fillStyle = row.color;
+      ctx.textAlign = 'left';
+      ctx.fillText(row.text, row.lx + jit, y);
+      if (row.status) {
+        ctx.textAlign = 'right';
+        ctx.fillStyle = row.statusColor;
+        ctx.fillText(row.status, VW - padX, y);
+        ctx.textAlign = 'left';
       }
       y += lh;
     }
 
-    // cursor parpellejant a la línia actual (mentre escriu o espera)
-    if ((this.state === 'typing' || this.state === 'wait') && Math.floor(this.cursorT * 2) % 2 === 0 && visible.length) {
-      const last = visible[visible.length - 1];
-      ctx.font = '9px "Courier New", monospace';
-      const tw = ctx.measureText(last.full.substring(0, Math.floor(last.reveal))).width;
-      ctx.fillStyle = T.green;
-      ctx.fillRect(14 + (last.indent || 0) + tw + 2 + gx, y - lh - 4, 6, 9);
+    const typing = this.state === 'typing' || this.state === 'wait';
+    if (typing && Math.floor(this.cursorT * 2) % 2 === 0 && visual.length) {
+      const lastRow = visual[visual.length - 1];
+      const lastLogical = this.lines[this.lines.length - 1];
+      if (lastRow.logical === lastLogical) {
+        const tw = ctx.measureText(lastRow.text).width;
+        ctx.fillStyle = lastRow.color || T.green;
+        ctx.textAlign = 'left';
+        ctx.fillText('▌', lastRow.lx + tw + fso(1), y - lh);
+      }
     }
 
-    // barra de càrrega
     if (this.bar) {
+      y += fso(4);
       const p = U.clamp(this.bar.t / this.bar.d, 0, 1);
-      const w = 200, x = 14, by = y + 4;
-      drawText(ctx, this.bar.label, x, by, { size: 9, color: this.bar.color });
-      const bx = x, bbY = by + 10;
-      ctx.strokeStyle = this.bar.color; ctx.strokeRect(bx + 0.5, bbY + 0.5, w, 8);
+      const w = Math.min(fso(220), VW - padX * 2);
+      const x = padX;
+      const by = y + fso(2);
+      drawText(ctx, this.bar.label, x, by, { size: 9, color: this.bar.color, os: true });
+      const bbY = by + fso(12);
+      ctx.strokeStyle = this.bar.color;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, bbY + 0.5, w, fso(8));
       const filled = Math.floor(p * 20);
       let s = '';
       for (let k = 0; k < 20; k++) s += k < filled ? '█' : '·';
-      drawText(ctx, s, bx + 3, bbY + 5, { size: 8, color: this.bar.color });
-      drawText(ctx, Math.floor(p * 100) + '%', bx + w + 8, bbY + 5, { size: 8, color: this.bar.color });
+      drawText(ctx, s, x + fso(3), bbY + fso(5), { size: 8, color: this.bar.color, os: true });
+      const pct = Math.floor(p * 100) + '%';
+      drawText(ctx, pct, x + w + fso(6), bbY + fso(5), { size: 8, color: this.bar.color, os: true });
+      y = bbY + fso(14);
     }
 
-    // text gran
     if (this.big) {
       const a = U.clamp(this.big.t / 0.3, 0, 1) * U.clamp((this.big.d - this.big.t) / 0.3, 0, 1);
       ctx.globalAlpha = a;
-      drawCenter(ctx, this.big.text, VH / 2, { size: this.big.size, color: this.big.color, shadow: '#003322', sx: 2, sy: 2 });
+      ctx.fillStyle = 'rgba(2,5,10,0.55)';
+      ctx.fillRect(0, 0, VW, VH);
+      drawCenter(ctx, this.big.text, VH / 2, {
+        size: this.big.size, color: this.big.color, shadow: '#003322',
+        sx: 2, sy: 2, os: true,
+      });
       ctx.globalAlpha = 1;
     }
 
-    // prompt parpellejant
     if (this.state === 'prompt' && Math.floor(this.cursorT * 1.6) % 2 === 0) {
-      drawCenter(ctx, this.promptText, VH - 18, { size: 11, color: T.amber });
+      drawCenter(ctx, this.promptText, VH - fso(18), { size: 11, color: T.amber, os: true });
     }
 
-    // overlay CRT (scanlines + vinyeta)
-    if (this.scan) drawCRT(ctx, this.glitch);
+    if (this.scan) drawCRT(ctx, this.glitch, false);
+    ctx.imageSmoothingEnabled = smooth;
   }
 }
 
-function drawCRT(ctx, glitch = 0) {
-  ctx.globalAlpha = 0.08;
+function drawCRT(ctx, glitch = 0, underText = false) {
+  if (underText) {
+    const g = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.45, VW / 2, VH / 2, VH * 0.95);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.18)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, VW, VH);
+    return;
+  }
+  ctx.globalAlpha = 0.028;
   ctx.fillStyle = '#000';
-  for (let y = 0; y < VH; y += 3) ctx.fillRect(0, y, VW, 1);
+  for (let yy = 0; yy < VH; yy += 2) ctx.fillRect(0, yy, VW, 1);
   ctx.globalAlpha = 1;
-  // vinyeta
-  const g = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.3, VW / 2, VH / 2, VH * 0.8);
-  g.addColorStop(0, 'rgba(0,0,0,0)');
-  g.addColorStop(1, 'rgba(0,0,0,0.45)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, VW, VH);
   if (glitch > 0 && U.chance(0.5)) {
-    ctx.fillStyle = 'rgba(120,255,180,0.08)';
-    const yy = U.randInt(0, VH);
-    ctx.fillRect(0, yy, VW, U.randInt(2, 10));
+    ctx.fillStyle = 'rgba(120,255,180,0.06)';
+    const gy = U.randInt(0, VH);
+    ctx.fillRect(0, gy, VW, U.randInt(fso(2), fso(8)));
   }
 }
 
@@ -214,11 +322,12 @@ function drawCRT(ctx, glitch = 0) {
 function bootProgram() {
   const ok = { status: '[ OK ]', statusColor: T.green };
   return [
-    step.wait(0.4),
-    step.big('MarriageOS', { size: 30, d: 1.8, color: T.green }),
-    step.line('MarriageOS v1.0', { color: T.cyan }),
+    step.pause('[ Clica per arrencar LauraiNilOS ]'),
+    step.big('LauraiNilOS', { size: 30, d: 1.8, color: T.green, click: true }),
+    step.line('LauraiNilOS v1.0', { color: T.cyan }),
     step.line('(c) 1994 Institut de l\'Amor Vertader', { color: T.dim }),
     step.blank(),
+    step.pause('[ Prem per inicialitzar el sistema ]'),
     step.line('Inicialitzant sistema...'),
     step.bar('Carregant nucli', 1.0),
     step.line('Carregant base de dades...'),
@@ -230,6 +339,7 @@ function bootProgram() {
     step.line('Registres trobats.', { color: T.green }),
     step.line('Any de naixement detectat: 1994', { color: T.cyan }),
     step.blank(),
+    step.pause('[ Prem per carregar els perfils ]'),
     step.line('Carregant Laura...', ok),
     step.line('Carregant Nil...', ok),
     step.line('Buscant connexions...'),
@@ -243,8 +353,9 @@ function bootProgram() {
     step.line('Calculant probabilitat d\'èxit matrimonial...', { status: '[ ERROR ]', statusColor: T.red }),
     step.wait(0.5),
     step.line('Valor superior al límit mesurable.', { color: T.red }),
-    step.wait(0.8),
+    step.wait(0.6),
     step.blank(),
+    step.pause('[ Prem per executar les simulacions ]'),
     // ---- Simulacions absurdes ----
     step.line('Executant simulacions de la vida real...', { color: T.dim }),
     step.line('Simulant escapades de cap de setmana...', { status: '[ OK ]', statusColor: T.green }),
@@ -258,16 +369,17 @@ function bootProgram() {
     step.line('Analitzant possibilitat de felicitat extrema...', { status: '[ AVÍS ]', statusColor: T.amber }),
     step.wait(0.4),
     step.line('Resultat estadísticament sospitós.', { color: T.amber }),
-    step.wait(1.0),
+    step.wait(0.5),
     step.blank(),
+    step.pause('[ Prem per activar el mode simulació ]'),
     // ---- Transició ----
     step.line('Simulació preparada.', { color: T.green }),
     step.line('Inicialitzant entorn virtual...'),
     step.bar('Carregant motor gràfic', 1.1),
     step.line('Carregant memòries...', { status: '[ OK ]', statusColor: T.green }),
     step.line('Carregant aventures...', { status: '[ OK ]', statusColor: T.green }),
-    step.wait(0.5),
-    step.big('SIMULATION MODE ACTIVATED', { size: 13, d: 1.6, color: T.cyan }),
+    step.wait(0.4),
+    step.big('SIMULATION MODE ACTIVATED', { size: 13, d: 1.6, color: T.cyan, click: true, clickText: '[ Prem per entrar al joc ]' }),
     step.glitch(1.0),
     step.go('title', {}, 1.6),
   ];
@@ -275,7 +387,6 @@ function bootProgram() {
 
 registerScene('boot', () => {
   let runner;
-  let started = false;
   return {
     enter() {
       AudioEngine.setTrack('terminal');
@@ -284,25 +395,27 @@ registerScene('boot', () => {
     update(dt) { runner.update(dt); },
     render(ctx) {
       runner.render(ctx);
-      if (!started) {
-        // petita pista per accelerar
-        if (Math.floor(performance.now() / 600) % 2 === 0)
-          drawText(ctx, '[ toca / tecla per accelerar ]', 14, VH - 8, { size: 7, color: 'rgba(120,255,180,0.4)' });
+      if (runner.state !== 'prompt' && runner.state !== 'end' && Math.floor(performance.now() / 600) % 2 === 0) {
+        drawText(ctx, '[ tecla: accelerar línia ]', fso(14), VH - fso(8), { size: 7, color: 'rgba(120,255,180,0.35)', os: true });
       }
     },
     onInput(a) {
-      if (a === 'any' || a === 'tap' || a === 'a') { started = true; runner.skip(); }
+      if (a === 'any' || a === 'tap' || a === 'a') {
+        AudioEngine.resume();
+        runner.skip();
+      }
     },
   };
 });
 
 // =====================================================================
-//  Retorn a MarriageOS (després del final)
+//  Retorn a LauraiNilOS (després del final)
 // =====================================================================
 function returnProgram() {
   return [
-    step.wait(0.6),
-    step.line('MarriageOS v1.0', { color: T.cyan }),
+    step.pause('[ Clica per tornar a LauraiNilOS ]'),
+    step.wait(0.4),
+    step.line('LauraiNilOS v1.0', { color: T.cyan }),
     step.line('Reconnectant amb el sistema...'),
     step.bar('Sincronitzant', 0.9),
     step.line('Recollint dades finals...'),
@@ -311,12 +424,13 @@ function returnProgram() {
     step.line('Simulació completada.', { color: T.green }),
     step.wait(0.5),
     step.blank(),
-    step.big('RESULTAT', { size: 16, d: 1.2, color: T.cyan }),
+    step.big('RESULTAT', { size: 16, d: 1.2, color: T.cyan, click: true, clickText: '[ Prem per veure el resultat ]' }),
     step.line('RESULTAT: MATRIMONI APROVAT', { color: T.amber, status: '[ ✓ ]', statusColor: T.green }),
     step.line('Estat del sistema: OPERATIU', { status: '[ ONLINE ]', statusColor: T.green }),
     step.line('Temps estimat de funcionament: TOTA LA VIDA', { color: T.cyan }),
-    step.wait(1.2),
+    step.wait(0.5),
     step.blank(),
+    step.pause('[ Prem per continuar ]'),
     step.go('gift', {}, 1.4),
   ];
 }
@@ -326,7 +440,9 @@ registerScene('returnos', () => {
     enter() { AudioEngine.setTrack('terminal'); runner = new TerminalRunner(returnProgram()); },
     update(dt) { runner.update(dt); },
     render(ctx) { runner.render(ctx); },
-    onInput(a) { if (a === 'any' || a === 'tap' || a === 'a') runner.skip(); },
+    onInput(a) {
+      if (a === 'any' || a === 'tap' || a === 'a') { AudioEngine.resume(); runner.skip(); }
+    },
   };
 });
 
@@ -335,20 +451,22 @@ registerScene('returnos', () => {
 // =====================================================================
 function giftProgram() {
   return [
-    step.wait(0.4),
+    step.pause('[ Clica per revelar el regal ]'),
+    step.wait(0.3),
     step.line('Buscant patrocinadors...', { color: T.dim }),
     step.bar('Escanejant la xarxa', 1.0),
     step.wait(0.3),
     step.line('Patrocinador detectat.', { color: T.green }),
     step.blank(),
-    step.line('Nom: Albert Gil Esmendia', { color: T.cyan }),
+    step.line('Nom: Dr. Albert Gil Esmendia (no soc metge)', { color: T.cyan }),
     step.line('Classificació: Wedding Investor', { color: T.amber }),
     step.line('Tipus: Contribució estratègica', { color: T.white }),
     step.wait(0.6),
     step.blank(),
-    step.big('TRANSFER DETECTED', { size: 15, d: 1.4, color: T.amber }),
+    step.pause('[ Prem per la transferència ]'),
+    step.big('TRANSFER DETECTED', { size: 15, d: 1.4, color: T.amber, click: true }),
     step.fn(() => AudioEngine.sfx('powerup')),
-    step.big('+250€', { size: 40, d: 1.8, color: T.green }),
+    step.big('+250€', { size: 40, d: 1.8, color: T.green, click: true }),
     step.line('Contribució assignada a:', { color: T.dim }),
     step.line('FONS D\'AVENTURES FUTURES', { color: T.cyan, status: '[ ✓ ]', statusColor: T.green }),
     step.fn(() => Achievements.unlock('futur')),
@@ -358,17 +476,20 @@ function giftProgram() {
     step.line('Laura ❤ Nil', { color: T.amber }),
     step.line('Mas d\'Osor', { color: T.cyan }),
     step.line('13.06.2026', { color: T.cyan }),
-    step.wait(1.4),
+    step.wait(0.5),
+    step.pause('[ Prem per el missatge final ]'),
     step.go('finalmsg', {}, 2.2),
   ];
 }
 registerScene('gift', () => {
   let runner;
   return {
-    enter() { AudioEngine.setTrack('love'); runner = new TerminalRunner(giftProgram()); },
+    enter() { AudioEngine.setTrack('weddingEnd'); runner = new TerminalRunner(giftProgram()); },
     update(dt) { runner.update(dt); },
     render(ctx) { runner.render(ctx); },
-    onInput(a) { if (a === 'any' || a === 'tap' || a === 'a') runner.skip(); },
+    onInput(a) {
+      if (a === 'any' || a === 'tap' || a === 'a') { AudioEngine.resume(); runner.skip(); }
+    },
   };
 });
 
@@ -384,7 +505,7 @@ registerScene('finalmsg', () => {
   let idx = 0, t = 0, hearts = [];
   return {
     enter() {
-      AudioEngine.setTrack('love');
+      AudioEngine.setTrack('weddingEnd');
       Achievements.unlock('complet');
       for (let i = 0; i < 16; i++) hearts.push({ x: U.rand(0, VW), y: U.rand(VH, VH * 2), s: U.rand(2, 4), v: U.rand(8, 20), p: U.rand(0, 6) });
     },

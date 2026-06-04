@@ -52,17 +52,15 @@ registerScene('title', () => {
       ctx.fillStyle = '#23304a'; ctx.fillRect(0, VH - 40, VW, 40);
 
       // títol gran
-      drawCenter(ctx, 'SIMULACIÓ ACTIVADA', 40, { size: 9, color: '#7fe9ff' });
-      // logotip cor
-      drawCenter(ctx, 'LAURA      NIL', 64, { size: 22, color: '#fff', shadow: '#ff5a7a', sx: 2, sy: 2 });
-      drawHeart(ctx, VW / 2, 60, 4, '#ff5a7a');
-      drawCenter(ctx, 'una aventura de casament', 84, { size: 8, color: '#ffd166' });
+      drawCenter(ctx, 'SIMULACIÓ ACTIVADA', fs(40), { size: 9, color: '#7fe9ff' });
+      drawCenter(ctx, 'LAURA      NIL', fs(64), { size: 22, color: '#fff', shadow: '#ff5a7a', sx: 2, sy: 2 });
+      drawHeart(ctx, VW / 2, fs(60), 6, '#ff5a7a');
+      drawCenter(ctx, 'una aventura de casament', fs(84), { size: 8, color: '#ffd166' });
 
-      // herois al peu
-      const bob = Math.sin(t * 3);
-      drawHero(ctx, HEROES.nil, VW / 2 - 26, VH - 38 + bob, 'right', t, false);
-      drawHero(ctx, HEROES.laura, VW / 2 + 26, VH - 38 - bob, 'left', t, false);
-      drawHeart(ctx, VW / 2, VH - 56 + Math.sin(t * 2) * 2, 2, '#ff7a98');
+      const bob = Math.sin(t * 3) * fs(2);
+      drawHero(ctx, HEROES.nil, VW / 2 - fs(40), VH - fs(50) + bob, 'right', t, false);
+      drawHero(ctx, HEROES.laura, VW / 2 + fs(40), VH - fs(50) - bob, 'left', t, false);
+      drawHeart(ctx, VW / 2, VH - fs(72) + Math.sin(t * 2) * fs(2), 3, '#ff7a98');
 
       // PREMEU START
       if (Math.floor(t * 1.4) % 2 === 0)
@@ -75,7 +73,7 @@ registerScene('title', () => {
     onInput(a) {
       if (a === 'b') { SM.go('achievements', { from: 'title' }, 2.4); return; }
       if ((a === 'a' || a === 'tap' || a === 'any') && !started) {
-        started = true; AudioEngine.sfx('confirm'); SM.go('level1', {}, 2.0);
+        started = true; AudioEngine.resume(); AudioEngine.sfx('confirm'); SM.go('level1', {}, 2.0);
       }
     },
   };
@@ -96,13 +94,13 @@ registerScene('reunion', () => {
 
   return {
     enter() {
-      AudioEngine.setTrack('love');
+      AudioEngine.setTrack('wedding');
       Achievements.unlock('has_arribat');
     },
     update(dt) {
       t += dt; parts.update(dt);
       if (stage === 'walk') {
-        nilX = U.lerp(nilX, nilTarget, dt * 2);
+        nilX = U.lerp(nilX, nilTarget, dt * 2.4);
         if (nilX > nilTarget - 2) {
           nilX = nilTarget; stage = 'dialogue';
           dlg.show([
@@ -150,7 +148,7 @@ registerScene('reunion', () => {
         drawCenter(ctx, 'Laura s\'uneix a l\'aventura', VH / 2 + 12, { size: 8, color: '#ffd166' });
         ctx.globalAlpha = 1;
         // cor entre tots dos
-        drawHeart(ctx, (nilX + lauraX) / 2, VH - 50 + Math.sin(t * 3) * 2, 3, '#ff5a7a');
+        drawHeart(ctx, (nilX + lauraX) / 2, VH - fs(50) + Math.sin(t * 3) * fs(2), 4, '#ff5a7a');
       }
     },
     onInput(a) {
@@ -183,7 +181,7 @@ registerScene('finalwalk', () => {
   for (let i = 0; i < 24; i++) petals.push({ x: U.rand(0, VW), y: U.rand(-20, VH), v: U.rand(10, 24), sway: U.rand(0, 6), c: U.pick(['#ff9ec2', '#ffd166', '#fff', '#c39bff']) });
 
   return {
-    enter() { AudioEngine.setTrack('love'); },
+    enter() { AudioEngine.setTrack('wedding'); },
     update(dt) {
       t += dt; parts.update(dt);
       for (const p of petals) { p.y += p.v * dt; p.x += Math.sin(t + p.sway) * 6 * dt; if (p.y > VH + 10) { p.y = -10; p.x = U.rand(0, VW) + cam; } }
@@ -192,12 +190,12 @@ registerScene('finalwalk', () => {
         let dx = Input.x, dy = Input.y;
         if (dx || dy) {
           if (dx > 0) facing = 'right'; else if (dx < 0) facing = 'left';
-          nil.x = U.clamp(nil.x + dx * 70 * dt, 20, world.w - 10);
-          nil.y = U.clamp(nil.y + dy * 50 * dt, 120, 180);
+          nil.x = U.clamp(nil.x + dx * HERO_SPEED_COOP * dt, 20, world.w - 10);
+          nil.y = U.clamp(nil.y + dy * HERO_SPEED_COOP_Y * dt, 120, 180);
         }
         // Laura segueix la Nil (de la maneta)
-        laura.x = U.lerp(laura.x, nil.x - 16, dt * 4);
-        laura.y = U.lerp(laura.y, nil.y + 6, dt * 4);
+        laura.x = U.lerp(laura.x, nil.x - 16, dt * 4.6);
+        laura.y = U.lerp(laura.y, nil.y + 6, dt * 4.6);
 
         cam = U.clamp(nil.x - VW / 2, 0, Math.max(0, world.w - VW));
 
@@ -243,14 +241,14 @@ registerScene('finalwalk', () => {
       const list = [{ h: HEROES.laura, x: laura.x, y: laura.y }, { h: HEROES.nil, x: nil.x, y: nil.y }].sort((a, b) => a.y - b.y);
       for (const e of list) drawHero(ctx, e.h, e.x - cam, e.y, facing, t, !reached && (Input.x || Input.y));
       // maneta (cor entre tots dos)
-      drawHeart(ctx, (nil.x + laura.x) / 2 - cam, Math.min(nil.y, laura.y) - 22 + Math.sin(t * 3) * 1.5, 1.5, '#ff5a7a');
+      drawHeart(ctx, (nil.x + laura.x) / 2 - cam, Math.min(nil.y, laura.y) - fs(22) + Math.sin(t * 3) * fs(2), 3, '#ff5a7a');
 
       // pètals
       for (const p of petals) { ctx.fillStyle = p.c; ctx.fillRect(p.x - cam % VW, p.y, 2, 2); }
       parts.render(ctx, { x: cam, y: 0 });
 
       // HUD
-      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(0, 0, VW, 14);
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(0, 0, VW, fs(14));
       drawText(ctx, 'JUGADOR 1: Nil   JUGADOR 2: Laura', 6, 7, { size: 8, color: '#fff' });
       drawText(ctx, 'Camineu junts cap a l\'altar →', VW - 6, 7, { size: 8, color: '#ffd166', align: 'right' });
 
@@ -269,7 +267,7 @@ registerScene('finalwalk', () => {
 //  FINAL — seqüència de text
 // =====================================================================
 registerScene('ending', () => {
-  let t = 0, idx = 0;
+  let t = 0, idx = 0, leaving = false;
   const seq = [
     { lines: ['LAURA ❤ NIL'], size: 24, color: '#fff', hold: 2.6, sfx: 'heart' },
     { lines: ['MISSIÓ COMPLETADA'], size: 16, color: '#ffd166', hold: 2.4, sfx: 'win' },
@@ -279,21 +277,36 @@ registerScene('ending', () => {
     { lines: ['"La veritable aventura', 'comença ara."'], size: 13, color: '#ffd166', hold: 3.4 },
   ];
   const parts = new Particles();
+
+  function goToReturnOS() {
+    if (leaving) return;
+    leaving = true;
+    SM.go('returnos', {}, 2.4);
+  }
+
+  function advanceSlide() {
+    if (leaving) return;
+    idx++;
+    if (idx >= seq.length) { goToReturnOS(); return; }
+    t = 0;
+    if (seq[idx].sfx) AudioEngine.sfx(seq[idx].sfx);
+  }
+
   return {
-    enter() { AudioEngine.setTrack('love'); AudioEngine.sfx('heart'); },
+    enter() {
+      leaving = false; idx = 0; t = 0;
+      AudioEngine.setTrack('weddingEnd'); AudioEngine.sfx('heart');
+    },
     update(dt) {
+      if (leaving) return;
       t += dt; parts.update(dt);
       if (idx === 0 && U.chance(0.08)) parts.burst(U.rand(0, VW), VH + 5, ['#ff7a98', '#ffd166'], 3, { up: 40, grav: 30 });
-      if (t > seq[idx].hold) {
-        idx++;
-        if (idx >= seq.length) { SM.go('returnos', {}, 2.4); return; }
-        t = 0;
-        if (seq[idx].sfx) AudioEngine.sfx(seq[idx].sfx);
-      }
+      if (idx < seq.length && t > seq[idx].hold) advanceSlide();
     },
     render(ctx) {
       ctx.fillStyle = '#08060f'; ctx.fillRect(0, 0, VW, VH);
       parts.render(ctx, { x: 0, y: 0 });
+      if (leaving || idx >= seq.length) return;
       const s = seq[idx];
       const a = U.clamp(t / 0.6, 0, 1) * U.clamp((s.hold - t) / 0.5, 0, 1);
       ctx.globalAlpha = a;
@@ -303,9 +316,16 @@ registerScene('ending', () => {
         drawCenter(ctx, ln, y, { size: s.size, color: s.color, shadow: 'rgba(0,0,0,0.6)', sx: 1, sy: 2 });
       });
       ctx.globalAlpha = 1;
-      if (idx === 0) drawHeart(ctx, VW / 2, VH / 2 - 26, 3, '#ff5a7a');
+      if (idx === 0) drawHeart(ctx, VW / 2, VH / 2 - fs(26), 6, '#ff5a7a');
+      if (idx === seq.length - 1 && Math.floor(t * 1.4) % 2 === 0)
+        drawCenter(ctx, Input.hasTouch ? 'Toca per continuar' : 'Prem qualsevol tecla', VH - 12, { size: 7, color: 'rgba(255,255,255,0.45)' });
     },
-    onInput() {},
+    onInput(a) {
+      if (a === 'any' || a === 'tap' || a === 'a') {
+        if (idx >= seq.length - 1 && t > 0.5) goToReturnOS();
+        else if (t > 0.3) advanceSlide();
+      }
+    },
   };
 });
 

@@ -53,7 +53,7 @@ registerScene('boss', () => {
       for (let i = 0; i < a.n; i++) {
         setTimeout(() => {
           const ang = Math.atan2(player.y - boss.y, player.x - boss.x) + U.rand(-0.2, 0.2);
-          bshots.push({ x: boss.x, y: boss.y + 18, vx: Math.cos(ang) * a.spd, vy: Math.sin(ang) * a.spd, e: a.emoji });
+          bshots.push({ x: boss.x, y: boss.y + 18 * BOSS_DRAW_SCALE, vx: Math.cos(ang) * a.spd, vy: Math.sin(ang) * a.spd, e: a.emoji });
         }, i * 220);
       }
     } else if (a.kind === 'sides') {
@@ -64,7 +64,7 @@ registerScene('boss', () => {
     } else if (a.kind === 'fan') {
       for (let i = 0; i < a.n; i++) {
         const ang = Math.PI / 2 + (i - (a.n - 1) / 2) * 0.28;
-        bshots.push({ x: boss.x, y: boss.y + 18, vx: Math.cos(ang) * a.spd, vy: Math.sin(ang) * a.spd, e: a.emoji });
+        bshots.push({ x: boss.x, y: boss.y + 18 * BOSS_DRAW_SCALE, vx: Math.cos(ang) * a.spd, vy: Math.sin(ang) * a.spd, e: a.emoji });
       }
     }
   }
@@ -102,8 +102,8 @@ registerScene('boss', () => {
 
       // moviment jugador
       let dx = Input.x, dy = Input.y;
-      player.x = U.clamp(player.x + dx * 110 * dt, 10, VW - 10);
-      player.y = U.clamp(player.y + dy * 110 * dt, VH * 0.45, VH - 14);
+      player.x = U.clamp(player.x + dx * HERO_SPEED_BOSS * dt, 10, VW - 10);
+      player.y = U.clamp(player.y + dy * HERO_SPEED_BOSS * dt, VH * 0.45, VH - 14);
       if (player.invuln > 0) player.invuln -= dt;
 
       // foc automàtic + manual
@@ -126,7 +126,7 @@ registerScene('boss', () => {
       for (let i = pshots.length - 1; i >= 0; i--) {
         const s = pshots[i];
         if (s.y < -10) { pshots.splice(i, 1); continue; }
-        if (Math.abs(s.x - boss.x) < 22 && Math.abs(s.y - boss.y) < 18 && boss.hp > 0) {
+        if (Math.abs(s.x - boss.x) < 30 * BOSS_DRAW_SCALE && Math.abs(s.y - boss.y) < 22 * BOSS_DRAW_SCALE && boss.hp > 0) {
           boss.hp -= s.dmg; boss.hit = 0.12;
           parts.burst(s.x, s.y, [s.c, '#fff'], 5, { spd: 50 });
           AudioEngine.sfx('bosshit');
@@ -191,16 +191,16 @@ registerScene('boss', () => {
       parts.render(ctx, { x: 0, y: 0 });
 
       // ---- HUD del boss ----
-      ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, VW, 24);
-      drawCenter(ctx, 'MONSTRE DE LA PLANIFICACIÓ DEL CASAMENT', 8, { size: 8, color: '#ff8aa6' });
-      const bw = VW - 60, bx = 30, by = 15;
-      ctx.fillStyle = '#3a1020'; ctx.fillRect(bx, by, bw, 6);
-      ctx.fillStyle = '#ff4d6d'; ctx.fillRect(bx, by, bw * (boss.hp / boss.maxhp), 6);
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.strokeRect(bx + 0.5, by + 0.5, bw, 6);
+      ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, VW, fs(24));
+      drawCenter(ctx, 'MONSTRE DE LA PLANIFICACIÓ DEL CASAMENT', fs(8), { size: 8, color: '#ff8aa6' });
+      const bw = VW - fs(60), bx = fs(30), by = fs(15);
+      ctx.fillStyle = '#3a1020'; ctx.fillRect(bx, by, bw, fs(6));
+      ctx.fillStyle = '#ff4d6d'; ctx.fillRect(bx, by, bw * (boss.hp / boss.maxhp), fs(6));
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, fs(1));
+      ctx.strokeRect(bx + 0.5, by + 0.5, bw, fs(6));
 
-      // cors del jugador
       for (let i = 0; i < player.maxHearts; i++) {
-        drawHeart(ctx, 12 + i * 12, VH - 10, 2, i < player.hearts ? '#ff5a7a' : 'rgba(255,255,255,0.2)');
+        drawHeart(ctx, fs(12) + i * fs(12), VH - fs(12), 2, i < player.hearts ? '#ff5a7a' : 'rgba(255,255,255,0.2)');
       }
       // arma actual
       const w = WEAPONS[player.weap];
@@ -241,7 +241,7 @@ function drawBossMonster(ctx, x, y, t, hit, hpFrac) {
   ctx.save();
   ctx.translate(x, y);
   const pulse = 1 + Math.sin(t * 4) * 0.04;
-  ctx.scale(pulse, pulse);
+  ctx.scale(pulse * BOSS_DRAW_SCALE, pulse * BOSS_DRAW_SCALE);
 
   // cos
   ctx.fillStyle = hit ? '#ffffff' : '#7a3a5a';

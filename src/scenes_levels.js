@@ -15,24 +15,32 @@ function createLevel(cfg) {
     let shake = 0;
     let goalReached = false;
     let completing = false;
+    let gameOver = false;
     const dlg = new DialogueBox();
+    const defaultDmg = cfg.defaultDmg != null ? cfg.defaultDmg : 20;
+    const spdMul = cfg.hazardSpdMul || 1;
 
     const player = {
       x: cfg.start ? cfg.start.x : 60,
       y: cfg.start ? cfg.start.y : world.h / 2,
       facing: 'down', moving: false,
-      speed: cfg.speed || 78,
+      speed: cfg.speed || HERO_SPEED,
       energy: 100,
       invuln: 0,
-      w: 10, h: 7,
+      w: fs(10), h: fs(7),
     };
 
-    // ítems i perills es clonen perquè es puguin reiniciar
-    const items = cfg.items.map(o => Object.assign({ bob: U.rand(0, 6), got: false }, o));
-    const hazards = (cfg.hazards || []).map(o => Object.assign({
-      bob: U.rand(0, 6), dir: U.rand(0, Math.PI * 2), near: false,
-      hx: o.x, hy: o.y, t: U.rand(0, 6),
-    }, o));
+    function cloneItems() {
+      return cfg.items.map(o => Object.assign({ bob: U.rand(0, 6), got: false }, o));
+    }
+    function cloneHazards() {
+      return (cfg.hazards || []).map(o => Object.assign({
+        bob: U.rand(0, 6), dir: U.rand(0, Math.PI * 2), near: false,
+        hx: o.x, hy: o.y, t: U.rand(0, 6),
+      }, o));
+    }
+    let items = cloneItems();
+    let hazards = cloneHazards();
     let collected = 0;
     const goal = cfg.goal != null ? cfg.goal : items.filter(i => i.count !== false).length;
 
@@ -98,9 +106,42 @@ function createLevel(cfg) {
       SM.go(cfg.next, cfg.nextOpts || {}, 1.6);
     }
 
+    function triggerGameOver() {
+      if (gameOver || completing) return;
+      gameOver = true;
+      player.energy = 0;
+      AudioEngine.sfx('hurt');
+    }
+
+    function resetLevel(playSfx) {
+      gameOver = false;
+      completing = false;
+      goalReached = false;
+      collected = 0;
+      floaters.length = 0;
+      shake = 0;
+      intro = 0;
+      player.x = cfg.start ? cfg.start.x : 60;
+      player.y = cfg.start ? cfg.start.y : world.h / 2;
+      player.energy = 100;
+      player.invuln = playSfx ? 1.5 : 0;
+      player.facing = 'down';
+      items = cloneItems();
+      hazards = cloneHazards();
+      if (endNPC) { endNPC.appear = 0; endNPC.appearing = false; }
+      if (exitGate) exitGate.glow = 0;
+      dlg.active = false;
+      dlg.line = null;
+      dlg.queue = [];
+      if (playSfx) AudioEngine.sfx('select');
+    }
+
     return {
       enter() {
+        AudioEngine.resume();
         AudioEngine.setTrack(cfg.track);
+        resetLevel(false);
+        intro = 2.6;
       },
       update(dt) {
         t += dt;
@@ -109,12 +150,11 @@ function createLevel(cfg) {
         for (const f of floaters) { f.t -= dt; f.y += f.vy * dt; }
         if (floaters.length) for (let i = floaters.length - 1; i >= 0; i--) if (floaters[i].t <= 0) floaters.splice(i, 1);
 
-        // diàleg bloqueja el moviment
         if (dlg.active) { dlg.update(dt); return; }
+        if (gameOver) return;
 
         if (intro > 0) { intro -= dt; }
 
-        // moviment
         let dx = Input.x, dy = Input.y;
         if (dx && dy) { const inv = 1 / Math.sqrt(2); dx *= inv; dy *= inv; }
         player.moving = (dx !== 0 || dy !== 0);
@@ -123,7 +163,6 @@ function createLevel(cfg) {
         if (player.moving) tryMove(dx * player.speed * dt, dy * player.speed * dt);
 
         if (player.invuln > 0) player.invuln -= dt;
-        if (player.energy < 100) player.energy = Math.min(100, player.energy + 8 * dt);
 
         // càmera
         cam.x = U.clamp(player.x - VW / 2, 0, Math.max(0, world.w - VW));
@@ -133,37 +172,37 @@ function createLevel(cfg) {
         for (const it of items) {
           if (it.got) continue;
           it.bob += dt;
-          if (U.dist(player.x, player.y - 6, it.x, it.y - 6) < (it.r || 13)) onCollect(it);
+          if (U.dist(player.x, player.y - fs(6), it.x, it.y - fs(6)) < (it.r || fs(13))) onCollect(it);
         }
 
         // perills
         for (const h of hazards) {
           h.t += dt; h.bob += dt;
           updateHazard(h, dt);
-          const d = U.dist(player.x, player.y - 6, h.x, h.y - 6);
-          // comptar esquives (near-miss)
-          if (d < 26) {
+          const d = U.dist(player.x, player.y - fs(6), h.x, h.y - fs(6));
+          if (d < fs(26)) {
             if (!h.near) h.near = true;
-          } else if (h.near && d > 34) {
+          } else if (h.near && d > fs(34)) {
             h.near = false;
             if (cfg.countDodges) { State.examsDodged++; if (State.examsDodged >= 8) Achievements.unlock('examens'); }
           }
-          if (d < (h.r || 12) && player.invuln <= 0) {
-            player.invuln = 1.2;
-            player.energy = Math.max(0, player.energy - (h.dmg || 18));
+          if (d < (h.r || fs(12)) && player.invuln <= 0) {
+            player.invuln = 1.4;
+            const dmg = h.dmg != null ? h.dmg : defaultDmg;
+            player.energy = Math.max(0, player.energy - dmg);
             shake = 0.3;
             AudioEngine.sfx('hurt');
             parts.burst(player.x, player.y - 8, ['#ff6b6b', '#fff'], 8, { up: 20 });
-            // empenta
             const ang = Math.atan2(player.y - h.y, player.x - h.x);
             tryMove(Math.cos(ang) * 14, Math.sin(ang) * 14);
             if (h.float) floater(h.float, player.x, player.y - 18, '#ff8a8a');
             if (cfg.onHazard) cfg.onHazard(h, { floater });
+            if (player.energy <= 0) triggerGameOver();
           }
         }
 
         function updateHazard(h, dt) {
-          const sp = h.spd || 26;
+          const sp = (h.spd || 26) * spdMul;
           if (h.behavior === 'chase') {
             const ang = Math.atan2(player.y - h.y, player.x - h.x);
             h.x += Math.cos(ang) * sp * dt; h.y += Math.sin(ang) * sp * dt;
@@ -252,8 +291,8 @@ function createLevel(cfg) {
             drawEmoji(ctx, g.emoji || '➡', g.x - camX, g.y - camY - 10, 18);
           }
           else if (e.kind === 'player') {
-            if (player.invuln > 0 && Math.floor(t * 16) % 2 === 0) { /* parpelleig */ }
-            else drawHero(ctx, HEROES[cfg.hero || 'nil'], player.x - camX, player.y - camY, player.facing, t, player.moving);
+            const blink = player.invuln > 0 && player.invuln < 1.5 && Math.floor(t * 16) % 2 === 0;
+            if (!blink) drawHero(ctx, HEROES[cfg.hero || 'nil'], player.x - camX, player.y - camY, player.facing, t, player.moving);
           }
         }
 
@@ -274,7 +313,7 @@ function createLevel(cfg) {
           const a = U.clamp(Math.min(intro, 2.6 - intro) / 0.5, 0, 1);
           ctx.globalAlpha = a;
           ctx.fillStyle = 'rgba(0,0,0,0.55)';
-          ctx.fillRect(0, VH / 2 - 24, VW, 48);
+          ctx.fillRect(0, VH / 2 - fs(24), VW, fs(48));
           drawCenter(ctx, cfg.banner, VH / 2 - 4, { size: 14, color: '#fff', shadow: '#000', sx: 1, sy: 1 });
           drawCenter(ctx, cfg.introSub || cfg.subtitle, VH / 2 + 11, { size: 8, color: cfg.hudColor || '#8effc0' });
           ctx.globalAlpha = 1;
@@ -287,9 +326,12 @@ function createLevel(cfg) {
         }
 
         dlg.render(ctx);
+
+        if (gameOver) drawGameOverOverlay(ctx);
       },
 
       onInput(a) {
+        if (gameOver && (a === 'a' || a === 'tap' || a === 'any')) { resetLevel(true); return; }
         if (dlg.active && (a === 'a' || a === 'tap' || a === 'any')) { dlg.advance(); return; }
       },
     };
@@ -298,19 +340,28 @@ function createLevel(cfg) {
 
 // HUD comú dels nivells
 function drawLevelHUD(ctx, cfg, collected, goal, player, goalReached) {
-  // barra superior
+  const hudH = fs(14);
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.fillRect(0, 0, VW, 14);
-  drawText(ctx, cfg.subtitle, 6, 7, { size: 8, color: cfg.hudColor || '#8effc0' });
-  // comptador d'objectiu
+  ctx.fillRect(0, 0, VW, hudH);
+  drawText(ctx, cfg.subtitle, fs(6), fs(7), { size: 8, color: cfg.hudColor || '#8effc0' });
   const label = `${cfg.tokenEmoji || '★'} ${collected}/${goal}`;
-  drawText(ctx, label, VW - 6, 7, { size: 9, color: goalReached ? '#ffd166' : '#fff', align: 'right' });
-  // energia
-  const ew = 40, ex = VW / 2 - ew / 2, ey = 4;
-  ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(ex, ey, ew, 5);
+  drawText(ctx, label, VW - fs(6), fs(7), { size: 9, color: goalReached ? '#ffd166' : '#fff', align: 'right' });
+  const ew = fs(40), ex = VW / 2 - ew / 2, ey = fs(4);
+  ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(ex, ey, ew, fs(5));
   ctx.fillStyle = player.energy > 35 ? '#7fe98a' : '#ff7a7a';
-  ctx.fillRect(ex, ey, ew * (player.energy / 100), 5);
-  drawText(ctx, 'ENERGIA', ex - 4, 7, { size: 6, color: 'rgba(255,255,255,0.6)', align: 'right' });
+  ctx.fillRect(ex, ey, ew * (player.energy / 100), fs(5));
+  drawText(ctx, 'ENERGIA', ex - fs(4), fs(7), { size: 6, color: 'rgba(255,255,255,0.6)', align: 'right' });
+}
+
+function drawGameOverOverlay(ctx) {
+  ctx.fillStyle = 'rgba(0,0,0,0.72)';
+  ctx.fillRect(0, 0, VW, VH);
+  drawCenter(ctx, 'ENERGIA ESGOTADA', VH / 2 - fs(28), { size: 16, color: '#ff7a7a', shadow: '#000', sx: 1, sy: 1 });
+  drawCenter(ctx, 'Has perdut tota l\'energia.', VH / 2 - fs(6), { size: 9, color: '#fff' });
+  if (Math.floor(performance.now() / 600) % 2 === 0) {
+    drawCenter(ctx, Input.hasTouch ? 'Toca per tornar a començar' : 'Prem A / Enter per tornar a començar', VH / 2 + fs(22), { size: 10, color: '#ffd166' });
+  }
+  drawCenter(ctx, '(sense regeneració d\'energia)', VH / 2 + fs(38), { size: 7, color: 'rgba(255,255,255,0.45)' });
 }
 
 // Dibuix de decorats segons tipus
@@ -350,12 +401,12 @@ function grassBg(ctx, cam, t, world, top, bottom) {
 // =====================================================================
 registerScene('level1', createLevel({
   hero: 'nil',
-  track: 'school',
+  track: 'school',   // pati d'escola, juganer
   banner: 'NIVELL 1', subtitle: 'SANT NICOLAU', introSub: "ELS ANYS D'ESCOLA",
   hudColor: '#ffd166', tokenEmoji: '🤝',
   world: { w: 660, h: 440 },
   start: { x: 60, y: 380 },
-  goal: 6, countDodges: true,
+  goal: 6, countDodges: true, defaultDmg: 22, hazardSpdMul: 1.15,
   ach: 'sant_nicolau',
   next: 'level2',
   drawBg: (ctx, cam, t, world) => {
@@ -388,10 +439,11 @@ registerScene('level1', createLevel({
     { x: 610, y: 300, emoji: '⚽', count: false, float: 'Visca el Sabadell!', fc: '#1b6fb3', ach: 'sabadell', pc: ['#1b6fb3'] },
   ],
   hazards: [
-    { x: 300, y: 200, emoji: '📚', behavior: 'patrolX', range: 80, freq: 0.8, float: 'Deures!' },
-    { x: 420, y: 300, emoji: '📝', behavior: 'wander', spd: 30, float: 'Examen!' },
-    { x: 200, y: 150, emoji: '📝', behavior: 'wander', spd: 28, float: 'Examen!' },
-    { x: 480, y: 380, emoji: '😴', behavior: 'patrolY', range: 50, freq: 1.1, float: 'Dilluns...' },
+    { x: 300, y: 200, emoji: '📚', behavior: 'patrolX', range: 95, freq: 1.0, float: 'Deures!' },
+    { x: 420, y: 300, emoji: '📝', behavior: 'wander', spd: 34, float: 'Examen!' },
+    { x: 200, y: 150, emoji: '📝', behavior: 'wander', spd: 32, float: 'Examen!' },
+    { x: 480, y: 380, emoji: '😴', behavior: 'patrolY', range: 60, freq: 1.2, float: 'Dilluns...' },
+    { x: 350, y: 320, emoji: '⏰', behavior: 'patrolX', range: 70, freq: 1.1, float: 'Examens!' },
   ],
   onItem: (it) => { if (it.count !== false) { /* progrés d'amistat */ } },
   endNPC: {
@@ -411,12 +463,12 @@ registerScene('level1', createLevel({
 // =====================================================================
 registerScene('level2', createLevel({
   hero: 'nil',
-  track: 'adventure',
+  track: 'adventure', // muntanya, mar, èpic
   banner: 'NIVELL 2', subtitle: "ANYS D'AVENTURES", introSub: "ELS ANYS D'AVENTURES",
   hudColor: '#7fe9ff', tokenEmoji: '🏔',
   world: { w: 820, h: 460 },
   start: { x: 50, y: 430 },
-  goal: 5,
+  goal: 5, defaultDmg: 24, hazardSpdMul: 1.2,
   ach: 'exploradors',
   next: 'level3',
   drawBg: (ctx, cam, t, world) => {
@@ -461,8 +513,10 @@ registerScene('level2', createLevel({
     { x: 760, y: 90, emoji: '⛺', count: false, float: 'Un cap de setmana més!', fc: '#ffd166', ach: 'no_descans', pc: ['#ffd166'] },
   ],
   hazards: [
-    { x: 400, y: 300, emoji: '🌧', behavior: 'wander', spd: 24, float: 'Pluja!' },
-    { x: 550, y: 220, emoji: '🥾', behavior: 'patrolX', range: 70, freq: 0.7, float: 'Ampolla!' },
+    { x: 400, y: 300, emoji: '🌧', behavior: 'wander', spd: 30, float: 'Pluja!' },
+    { x: 550, y: 220, emoji: '🥾', behavior: 'patrolX', range: 85, freq: 1.0, float: 'Ampolla!' },
+    { x: 280, y: 180, emoji: '💨', behavior: 'chase', spd: 24, float: 'Vent de muntanya!', dmg: 20 },
+    { x: 650, y: 380, emoji: '🌊', behavior: 'patrolY', range: 55, freq: 1.1, float: 'Onada!' },
   ],
   exit: { x: 770, y: 440, emoji: '➡' },
   onItem: (it, ctx) => {
@@ -476,12 +530,12 @@ registerScene('level2', createLevel({
 // =====================================================================
 registerScene('level3', createLevel({
   hero: 'nil',
-  track: 'adult',
+  track: 'adult',     // oficina / cafè, lofi
   banner: 'NIVELL 3', subtitle: 'VIDA ADULTA', introSub: 'LA VIDA ADULTA',
   hudColor: '#caa24a', tokenEmoji: '❤',
   world: { w: 620, h: 420 },
   start: { x: 60, y: 380 },
-  goal: 7, speed: 84,
+  goal: 7, speed: HERO_SPEED_MID, defaultDmg: 26, hazardSpdMul: 1.25,
   ach: 'vida_adulta',
   next: 'level4',
   drawBg: (ctx, cam, t, world) => {
@@ -514,10 +568,11 @@ registerScene('level3', createLevel({
     { x: 300, y: 380, emoji: '☕', count: false, float: 'Cafè +20', fc: '#caa24a', kind: 'cafe', pc: ['#caa24a'] },
   ],
   hazards: [
-    { x: 250, y: 150, emoji: '📧', behavior: 'chase', spd: 22, float: 'Email!', dmg: 14 },
-    { x: 400, y: 200, emoji: '📅', behavior: 'patrolX', range: 90, freq: 0.9, float: 'Reunió!' },
-    { x: 180, y: 320, emoji: '💸', behavior: 'wander', spd: 34, float: 'Despesa!' },
-    { x: 500, y: 120, emoji: '😴', behavior: 'patrolY', range: 60, freq: 1.0, float: 'Falta de son...' },
+    { x: 250, y: 150, emoji: '📧', behavior: 'chase', spd: 28, float: 'Email!', dmg: 22 },
+    { x: 400, y: 200, emoji: '📅', behavior: 'patrolX', range: 100, freq: 1.1, float: 'Reunió!', dmg: 24 },
+    { x: 180, y: 320, emoji: '💸', behavior: 'wander', spd: 38, float: 'Despesa!', dmg: 26 },
+    { x: 500, y: 120, emoji: '😴', behavior: 'patrolY', range: 70, freq: 1.2, float: 'Falta de son...', dmg: 24 },
+    { x: 320, y: 280, emoji: '📧', behavior: 'chase', spd: 26, float: 'Més emails!', dmg: 22 },
   ],
   exit: { x: 580, y: 70, emoji: '➡' },
   onItem: (it, ctx) => {
@@ -534,12 +589,12 @@ registerScene('level3', createLevel({
 // =====================================================================
 registerScene('level4', createLevel({
   hero: 'nil',
-  track: 'chaos',
+  track: 'wedding',   // marcha nupcial
   banner: 'NIVELL 4', subtitle: 'EL CASAMENT', introSub: 'PLANIFICANT EL CASAMENT',
   hudColor: '#ff8aa6', tokenEmoji: '✅',
   world: { w: 600, h: 420 },
   start: { x: 50, y: 380 },
-  goal: 6, speed: 92,
+  goal: 6, speed: HERO_SPEED_FAST, defaultDmg: 28, hazardSpdMul: 1.3,
   ach: 'whatsapp',
   next: 'boss',
   drawBg: (ctx, cam, t, world) => {
@@ -565,12 +620,13 @@ registerScene('level4', createLevel({
     { x: 250, y: 360, emoji: '🎵', float: 'Música!', fc: '#9fe0ff', pc: ['#9fe0ff'] },
   ],
   hazards: [
-    { x: 200, y: 100, emoji: '📱', behavior: 'chase', spd: 30, float: 'Grup família!', dmg: 12 },
-    { x: 400, y: 250, emoji: '📋', behavior: 'wander', spd: 42, float: 'Taules!' },
-    { x: 320, y: 150, emoji: '📧', behavior: 'wander', spd: 38, float: 'Proveïdor!' },
-    { x: 150, y: 300, emoji: '💸', behavior: 'chase', spd: 26, float: 'Pressupost!', dmg: 16 },
-    { x: 480, y: 90, emoji: '📞', behavior: 'patrolX', range: 80, freq: 1.4, float: 'Última hora!' },
-    { x: 350, y: 360, emoji: '💌', behavior: 'wander', spd: 36, float: 'Canvi RSVP!' },
+    { x: 200, y: 100, emoji: '📱', behavior: 'chase', spd: 36, float: 'Grup família!', dmg: 26 },
+    { x: 400, y: 250, emoji: '📋', behavior: 'wander', spd: 46, float: 'Taules!', dmg: 24 },
+    { x: 320, y: 150, emoji: '📧', behavior: 'wander', spd: 42, float: 'Proveïdor!', dmg: 22 },
+    { x: 150, y: 300, emoji: '💸', behavior: 'chase', spd: 32, float: 'Pressupost!', dmg: 28 },
+    { x: 480, y: 90, emoji: '📞', behavior: 'patrolX', range: 95, freq: 1.5, float: 'Última hora!', dmg: 24 },
+    { x: 350, y: 360, emoji: '💌', behavior: 'wander', spd: 40, float: 'Canvi RSVP!', dmg: 22 },
+    { x: 260, y: 200, emoji: '📱', behavior: 'chase', spd: 34, float: 'WhatsApp!', dmg: 26 },
   ],
   exit: { x: 560, y: 60, emoji: '⚔' },
   goalDoneHint: '→ Prepara\'t per la batalla final!',

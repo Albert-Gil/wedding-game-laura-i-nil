@@ -1,6 +1,6 @@
-# Laura ❤ Nil — MarriageOS
+# Laura ❤ Nil — LauraiNilOS
 
-Un regal de casament jugable. Comença com una simulació seriosa (**MarriageOS**) i,
+Un regal de casament jugable. Comença com una simulació seriosa (**LauraiNilOS**) i,
 de cop, es transforma en una aventura pixel-art retro que recorre la història de la
 Laura i el Nil: l'escola de Sant Nicolau, els anys d'aventures, la vida adulta, el caos
 de planificar el casament, el boss final i... el retrobament al **Mas d'Osor**.
@@ -23,7 +23,7 @@ No cal internet ni instal·lar res.
 
 ## Característiques
 
-- Dues fases: terminal **MarriageOS** → aventura jugable.
+- Dues fases: terminal **LauraiNilOS** → aventura jugable.
 - 4 nivells + **boss final** (Monstre de la Planificació del Casament).
 - Moment **Jugador 2 connectat**: la Laura es torna jugable.
 - Música chiptune i efectes de so sintetitzats (sense fitxers externs).
@@ -44,7 +44,7 @@ src/input.js        · teclat + controls tàctils
 src/sprites.js      · pixel-art procedural (Laura, Nil, decorats)
 src/achievements.js · assoliments i notificacions
 src/dialogue.js     · quadre de diàleg amb màquina d'escriure
-src/scenes_terminal.js  · MarriageOS (boot, regal, missatge final)
+src/scenes_terminal.js  · LauraiNilOS (boot, regal, missatge final)
 src/scenes_levels.js    · motor top-down + nivells 1..4
 src/scenes_boss.js      · batalla final
 src/scenes_emotional.js · títol, retrobament, caminada final, final

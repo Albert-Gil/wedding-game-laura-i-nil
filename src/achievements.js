@@ -60,24 +60,23 @@ const Achievements = {
 
   // Es dibuixa per sobre de tot, a dalt de la pantalla.
   renderToasts(ctx) {
-    let y = 8;
+    let y = fs(8);
     for (const t of this.toasts) {
-      // animació entrada/sortida
       let a = 1;
       if (t.t < 0.3) a = t.t / 0.3;
       else if (t.t > t.life - 0.6) a = (t.life - t.t) / 0.6;
       a = U.clamp(a, 0, 1);
-      const slide = (1 - a) * 10;
-      const w = 168, x = VW / 2 - w / 2;
+      const slide = (1 - a) * fs(10);
+      const w = fs(168), x = VW / 2 - w / 2, th = fs(26);
       ctx.globalAlpha = a;
       ctx.fillStyle = 'rgba(8,14,20,0.92)';
-      ctx.fillRect(x, y - slide, w, 26);
+      ctx.fillRect(x, y - slide, w, th);
       ctx.fillStyle = '#ffd166';
-      ctx.fillRect(x, y - slide, 3, 26);
-      drawText(ctx, '★ ASSOLIMENT DESBLOQUEJAT', x + 8, y - slide + 7, { size: 6, color: '#ffd166' });
-      drawText(ctx, t.title, x + 8, y - slide + 17, { size: 8, color: '#fff' });
+      ctx.fillRect(x, y - slide, fs(3), th);
+      drawText(ctx, '★ ASSOLIMENT DESBLOQUEJAT', x + fs(8), y - slide + fs(7), { size: 6, color: '#ffd166' });
+      drawText(ctx, t.title, x + fs(8), y - slide + fs(17), { size: 8, color: '#fff' });
       ctx.globalAlpha = 1;
-      y += 30;
+      y += fs(30);
     }
   },
 };
