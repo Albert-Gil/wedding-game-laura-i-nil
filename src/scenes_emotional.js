@@ -284,7 +284,7 @@ registerScene('ending', () => {
   const seq = [
     { lines: ['LAURA ❤ NIL'], size: 24, color: '#fff', hold: 2.6, sfx: 'heart' },
     { lines: ['MISSIÓ COMPLETADA'], size: 16, color: '#ffd166', hold: 2.4, sfx: 'win' },
-    { lines: ['TUTORIAL COMPLETAT'], size: 14, color: '#7fe9ff', hold: 2.4 },
+    { lines: ['Que sigueu molt feliços'], size: 16, color: '#ff8aa6', hold: 3.2, sfx: 'heart' },
     { lines: ['MARRIAGE MODE', 'UNLOCKED'], size: 16, color: '#ff8aa6', hold: 3.0, sfx: 'powerup' },
     { lines: ['Jugador 1: Nil', 'Jugador 2: Laura', 'Vides restants: ∞'], size: 11, color: '#fff', hold: 3.2, mono: true },
     { lines: ['"La veritable aventura', 'comença ara."'], size: 13, color: '#ffd166', hold: 3.4 },

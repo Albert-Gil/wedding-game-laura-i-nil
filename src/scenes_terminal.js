@@ -500,7 +500,7 @@ registerScene('gift', () => {
 // =====================================================================
 registerScene('finalmsg', () => {
   const seq = [
-    { text: 'El tutorial s\'ha completat.', size: 16, color: '#8effc0', hold: 2.6 },
+    { text: 'Que sigueu molt feliços', size: 20, color: '#ff8aa6', hold: 3.4 },
     { text: 'El casament no és la meta.', size: 18, color: '#ffd166', hold: 2.8 },
     { text: 'És el començament.', size: 22, color: '#ff8aa6', hold: 3.2 },
   ];
