@@ -57,13 +57,36 @@ class DialogueBox {
     }
   }
 
+  _wrapLines(ctx, text, maxW) {
+    ctx.font = `${fs(8)}px "Courier New", ui-monospace, monospace`;
+    const words = text.split(/\s+/).filter(Boolean);
+    const out = [];
+    let line = '';
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word;
+      if (ctx.measureText(test).width > maxW && line) {
+        out.push(line);
+        line = word;
+      } else line = test;
+    }
+    if (line) out.push(line);
+    return out.length ? out : [''];
+  }
+
   render(ctx) {
     if (!this.active || !this.line) return;
-    const boxH = fs(56);
+    const x = fs(8);
+    const w = VW - fs(16);
+    const innerW = w - fs(16);
+    const body = this.line.text.substring(0, Math.floor(this.shown));
+    const wrapped = this._wrapLines(ctx, body, innerW);
+    const maxLines = this.line.who ? 3 : 4;
+    const lines = wrapped.slice(-maxLines);
+    const lineStep = fs(11);
+    const headerH = this.line.who ? fs(14) : fs(6);
+    const boxH = headerH + lines.length * lineStep + fs(14);
     const y = VH - boxH - fs(6);
-    const x = fs(8), w = VW - fs(16);
 
-    // marc
     ctx.fillStyle = 'rgba(6,10,16,0.94)';
     ctx.fillRect(x, y, w, boxH);
     ctx.strokeStyle = '#8effc0';
@@ -76,31 +99,16 @@ class DialogueBox {
       ty += fs(13);
     }
 
-    const txt = this.line.text.substring(0, Math.floor(this.shown));
-    this._wrapText(ctx, txt, x + fs(8), ty, w - fs(16), fs(11), this.line.who ? '#fff' : '#bfe9ff', !this.line.who);
+    ctx.font = `${fs(8)}px "Courier New", ui-monospace, monospace`;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = this.line.who ? '#fff' : '#bfe9ff';
+    for (const ln of lines) {
+      ctx.fillText(ln, x + fs(8), ty);
+      ty += lineStep;
+    }
 
     if (this.shown >= this.line.text.length && Math.floor(this.blink * 2) % 2 === 0) {
       drawText(ctx, '▼', x + w - fs(14), y + boxH - fs(10), { size: 9, color: '#8effc0' });
     }
-  }
-
-  _wrapText(ctx, text, x, y, maxW, lh, color, italic) {
-    ctx.font = `${italic ? 'italic ' : ''}${fs(8)}px "Courier New", ui-monospace, monospace`;
-    ctx.textAlign = 'left';
-    ctx.fillStyle = color;
-    const words = text.split(' ');
-    let line = '';
-    let yy = y;
-    for (const word of words) {
-      const test = line ? line + ' ' + word : word;
-      if (ctx.measureText(test).width > maxW && line) {
-        ctx.fillText(line, x, yy);
-        line = word;
-        yy += lh;
-      } else {
-        line = test;
-      }
-    }
-    if (line) ctx.fillText(line, x, yy);
   }
 }

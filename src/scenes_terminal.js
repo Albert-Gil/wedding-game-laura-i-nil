@@ -218,7 +218,7 @@ class TerminalRunner {
     const fontPx = fso(9);
     const lh = fso(16);
     const marginTop = fso(18);
-    const marginBottom = this.state === 'prompt' ? fso(40) : fso(14);
+    const marginBottom = this.state === 'prompt' ? fso(44) : (this.bar ? fso(28) : fso(14));
     const padX = fso(14);
     const statusPad = fso(8);
     const fontStr = `${fontPx}px "Courier New", ui-monospace, monospace`;
@@ -280,15 +280,17 @@ class TerminalRunner {
       ctx.globalAlpha = a;
       ctx.fillStyle = 'rgba(2,5,10,0.55)';
       ctx.fillRect(0, 0, VW, VH);
+      const bigSize = fitFontSize(ctx, this.big.text, VW - fso(32), this.big.size, true);
       drawCenter(ctx, this.big.text, VH / 2, {
-        size: this.big.size, color: this.big.color, shadow: '#003322',
+        size: bigSize, color: this.big.color, shadow: '#003322',
         sx: 2, sy: 2, os: true,
       });
       ctx.globalAlpha = 1;
     }
 
     if (this.state === 'prompt' && Math.floor(this.cursorT * 1.6) % 2 === 0) {
-      drawCenter(ctx, this.promptText, VH - fso(18), { size: 11, color: T.amber, os: true });
+      const promptSize = fitFontSize(ctx, this.promptText, VW - fso(24), 11, true);
+      drawCenter(ctx, this.promptText, VH - fso(20), { size: promptSize, color: T.amber, os: true });
     }
 
     if (this.scan) drawCRT(ctx, this.glitch, false);
@@ -525,13 +527,20 @@ registerScene('finalmsg', () => {
       const cur = seq[idx];
       const a = U.clamp(t / 0.8, 0, 1);
       ctx.globalAlpha = a;
-      // línies anteriors es queden tènues a sobre
-      drawCenter(ctx, cur.text, VH / 2, { size: cur.size, color: cur.color, shadow: 'rgba(0,0,0,0.6)', sx: 1, sy: 2 });
+      const mainSize = fitFontSize(ctx, cur.text, VW - fs(48), cur.size);
+      const block = drawCenterBlock(ctx, [cur.text], VH / 2 - fso(6), {
+        size: mainSize,
+        color: cur.color,
+        shadow: 'rgba(0,0,0,0.6)',
+        sx: 1,
+        sy: 2,
+      });
       ctx.globalAlpha = 1;
       if (idx === seq.length - 1 && t > 2.5) {
-        if (Math.floor(t * 1.4) % 2 === 0)
-          drawCenter(ctx, 'Laura ❤ Nil  ·  13.06.2026  ·  Mas d\'Osor', VH - 22, { size: 8, color: 'rgba(255,255,255,0.7)' });
-        drawCenter(ctx, 'Toca per tornar a jugar', VH - 10, { size: 7, color: 'rgba(255,255,255,0.35)' });
+        const footTop = Math.max(block.bottom + fs(24), VH - fs(52));
+        drawCenter(ctx, 'Laura ❤ Nil', footTop, { size: 9, color: 'rgba(255,255,255,0.75)' });
+        drawCenter(ctx, '13.06.2026 · Mas d\'Osor', footTop + fs(14), { size: 8, color: 'rgba(255,255,255,0.6)' });
+        drawCenter(ctx, Input.hasTouch ? 'Toca per tornar a jugar' : 'Prem qualsevol tecla per tornar', footTop + fs(30), { size: 7, color: 'rgba(255,255,255,0.4)' });
       }
     },
     onInput(a) {

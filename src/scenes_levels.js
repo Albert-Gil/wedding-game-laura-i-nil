@@ -6,7 +6,11 @@
 // Crea una escena de nivell a partir d'una configuració.
 function createLevel(cfg) {
   return () => {
-    const world = cfg.world;
+    const pw = expandPlayWorld(cfg.world.w, cfg.world.h);
+    const padX = pw.padX;
+    const padY = pw.padY;
+    const world = { w: pw.w, h: pw.h };
+    const contentWorld = { w: cfg.world.w, h: cfg.world.h };
     const parts = new Particles();
     const floaters = []; // textos flotants ("Cafè +20")
     let cam = { x: 0, y: 0 };
@@ -21,8 +25,8 @@ function createLevel(cfg) {
     const spdMul = cfg.hazardSpdMul || 1;
 
     const player = {
-      x: cfg.start ? cfg.start.x : 60,
-      y: cfg.start ? cfg.start.y : world.h / 2,
+      x: (cfg.start ? cfg.start.x : 60) + padX,
+      y: (cfg.start ? cfg.start.y : cfg.world.h / 2) + padY,
       facing: 'down', moving: false,
       speed: cfg.speed || HERO_SPEED,
       energy: 100,
@@ -31,21 +35,35 @@ function createLevel(cfg) {
     };
 
     function cloneItems() {
-      return cfg.items.map(o => Object.assign({ bob: U.rand(0, 6), got: false }, o));
+      return cfg.items.map(o => Object.assign({ bob: U.rand(0, 6), got: false }, o, { x: o.x + padX, y: o.y + padY }));
     }
     function cloneHazards() {
       return (cfg.hazards || []).map(o => Object.assign({
         bob: U.rand(0, 6), dir: U.rand(0, Math.PI * 2), near: false,
-        hx: o.x, hy: o.y, t: U.rand(0, 6),
-      }, o));
+        t: U.rand(0, 6),
+      }, o, { x: o.x + padX, y: o.y + padY, hx: o.x + padX, hy: o.y + padY }));
     }
+    const obstacles = (cfg.obstacles || []).map(o => ({ x: o.x + padX, y: o.y + padY, w: o.w, h: o.h }));
+    const decor = (cfg.decor || []).map(d => {
+      const c = Object.assign({}, d);
+      if (c.x != null) c.x += padX;
+      if (c.y != null) c.y += padY;
+      return c;
+    });
     let items = cloneItems();
     let hazards = cloneHazards();
     let collected = 0;
     const goal = cfg.goal != null ? cfg.goal : items.filter(i => i.count !== false).length;
 
-    let endNPC = cfg.endNPC ? Object.assign({}, cfg.endNPC, { appear: 0 }) : null;
-    let exitGate = cfg.exit ? Object.assign({ glow: 0 }, cfg.exit) : null;
+    let endNPC = cfg.endNPC ? Object.assign({}, cfg.endNPC, {
+      appear: 0,
+      x: cfg.endNPC.x + padX,
+      y: cfg.endNPC.y + padY,
+    }) : null;
+    let exitGate = cfg.exit ? Object.assign({ glow: 0 }, cfg.exit, {
+      x: cfg.exit.x + padX,
+      y: cfg.exit.y + padY,
+    }) : null;
 
     function rectOf(e) { return { x: e.x - e.w / 2, y: e.y - e.h, w: e.w, h: e.h }; }
 
@@ -53,7 +71,7 @@ function createLevel(cfg) {
       // eix X
       player.x += dx;
       let pr = rectOf(player);
-      for (const o of (cfg.obstacles || [])) {
+      for (const o of obstacles) {
         if (U.aabb(pr, o)) {
           if (dx > 0) player.x = o.x - player.w / 2;
           else if (dx < 0) player.x = o.x + o.w + player.w / 2;
@@ -63,15 +81,16 @@ function createLevel(cfg) {
       // eix Y
       player.y += dy;
       pr = rectOf(player);
-      for (const o of (cfg.obstacles || [])) {
+      for (const o of obstacles) {
         if (U.aabb(pr, o)) {
           if (dy > 0) player.y = o.y;
           else if (dy < 0) player.y = o.y + o.h + player.h;
           pr = rectOf(player);
         }
       }
-      player.x = U.clamp(player.x, 8, world.w - 8);
-      player.y = U.clamp(player.y, 16, world.h - 4);
+      const ins = touchPlayInset();
+      player.x = U.clamp(player.x, ins.left, world.w - ins.right);
+      player.y = U.clamp(player.y, ins.top, world.h - ins.bottom);
     }
 
     function floater(text, x, y, color) {
@@ -121,8 +140,8 @@ function createLevel(cfg) {
       floaters.length = 0;
       shake = 0;
       intro = 0;
-      player.x = cfg.start ? cfg.start.x : 60;
-      player.y = cfg.start ? cfg.start.y : world.h / 2;
+      player.x = (cfg.start ? cfg.start.x : 60) + padX;
+      player.y = (cfg.start ? cfg.start.y : cfg.world.h / 2) + padY;
       player.energy = 100;
       player.invuln = playSfx ? 1.5 : 0;
       player.facing = 'down';
@@ -242,11 +261,11 @@ function createLevel(cfg) {
         const camX = cam.x - sx, camY = cam.y - sy;
 
         // fons
-        cfg.drawBg(ctx, { x: camX, y: camY }, t, world);
+        cfg.drawBg(ctx, { x: camX - padX, y: camY - padY }, t, contentWorld);
 
         // recollir entitats per ordenar per profunditat (y)
         const ents = [];
-        for (const d of (cfg.decor || [])) ents.push({ y: d.y, kind: 'decor', d });
+        for (const d of decor) ents.push({ y: d.y, kind: 'decor', d });
         for (const it of items) if (!it.got) ents.push({ y: it.y, kind: 'item', it });
         for (const h of hazards) ents.push({ y: h.y, kind: 'haz', h });
         if (endNPC && endNPC.appear > 0) ents.push({ y: endNPC.y, kind: 'npc' });
@@ -314,8 +333,13 @@ function createLevel(cfg) {
           ctx.globalAlpha = a;
           ctx.fillStyle = 'rgba(0,0,0,0.55)';
           ctx.fillRect(0, VH / 2 - fs(24), VW, fs(48));
-          drawCenter(ctx, cfg.banner, VH / 2 - 4, { size: 14, color: '#fff', shadow: '#000', sx: 1, sy: 1 });
-          drawCenter(ctx, cfg.introSub || cfg.subtitle, VH / 2 + 11, { size: 8, color: cfg.hudColor || '#8effc0' });
+          drawCenterBlock(ctx, [cfg.banner, cfg.introSub || cfg.subtitle], VH / 2, {
+            size: 12,
+            lineColors: ['#fff', cfg.hudColor || '#8effc0'],
+            shadow: '#000',
+            sx: 1,
+            sy: 1,
+          });
           ctx.globalAlpha = 1;
         }
 
@@ -356,12 +380,17 @@ function drawLevelHUD(ctx, cfg, collected, goal, player, goalReached) {
 function drawGameOverOverlay(ctx) {
   ctx.fillStyle = 'rgba(0,0,0,0.72)';
   ctx.fillRect(0, 0, VW, VH);
-  drawCenter(ctx, 'ENERGIA ESGOTADA', VH / 2 - fs(28), { size: 16, color: '#ff7a7a', shadow: '#000', sx: 1, sy: 1 });
-  drawCenter(ctx, 'Has perdut tota l\'energia.', VH / 2 - fs(6), { size: 9, color: '#fff' });
+  const block = drawCenterBlock(ctx, ['ENERGIA ESGOTADA', 'Has perdut tota l\'energia.'], VH / 2 - fs(12), {
+    size: 14,
+    lineColors: ['#ff7a7a', '#fff'],
+    shadow: '#000',
+    sx: 1,
+    sy: 1,
+  });
   if (Math.floor(performance.now() / 600) % 2 === 0) {
-    drawCenter(ctx, Input.hasTouch ? 'Toca per tornar a començar' : 'Prem A / Enter per tornar a començar', VH / 2 + fs(22), { size: 10, color: '#ffd166' });
+    drawCenter(ctx, Input.hasTouch ? 'Toca per tornar a començar' : 'Prem A / Enter per tornar a començar', block.bottom + fs(20), { size: 9, color: '#ffd166' });
   }
-  drawCenter(ctx, '(sense regeneració d\'energia)', VH / 2 + fs(38), { size: 7, color: 'rgba(255,255,255,0.45)' });
+  drawCenter(ctx, '(sense regeneració d\'energia)', block.bottom + fs(38), { size: 7, color: 'rgba(255,255,255,0.45)' });
 }
 
 // Dibuix de decorats segons tipus

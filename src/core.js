@@ -12,15 +12,36 @@ const S = VW / BASE_W;       // 2.5× — joc, personatges, UI
 const S_OS = 3.5;            // 3.5× — terminal LauraiNilOS (més llegible)
 
 // Velocitat de caminar dels personatges (px/s, espai de joc)
-const HERO_SPEED = 90;       // nivells 1–2 (abans 78)
-const HERO_SPEED_MID = 97;   // nivell 3 (abans 84)
-const HERO_SPEED_FAST = 106; // nivell 4 (abans 92)
-const HERO_SPEED_COOP = 82;  // caminada final (abans 70)
-const HERO_SPEED_COOP_Y = 58;
-const HERO_SPEED_BOSS = 128; // batalla final (abans 110)
+const HERO_SPEED = 112;      // nivells 1–2
+const HERO_SPEED_MID = 120;  // nivell 3
+const HERO_SPEED_FAST = 130; // nivell 4
+const HERO_SPEED_COOP = 100; // caminada final (dos jugadors)
+const HERO_SPEED_COOP_Y = 72;
+const HERO_SPEED_BOSS = 155; // batalla final
 
 function fs(n) { return Math.round(n * S); }
 function fso(n) { return Math.round(n * S_OS); }
+
+/** Omple fins a VW×VH quan el mapa és més petit (evita zona morta a baix-dreta). */
+function expandPlayWorld(baseW, baseH) {
+  const padX = Math.max(0, Math.round((VW - baseW) / 2));
+  const padY = Math.max(0, Math.round((VH - baseH) / 2));
+  return { w: baseW + padX * 2, h: baseH + padY * 2, padX, padY };
+}
+
+/** Marges reals dels controls tàctils (dpad esquerra, A/B dreta). */
+function touchPlayInset() {
+  if (typeof Input === 'undefined' || !Input.hasTouch) {
+    return { left: 8, right: 10, top: 16, bottom: 10 };
+  }
+  const sc = view.scale || 1;
+  return {
+    left: Math.round(168 / sc),
+    right: Math.round(158 / sc),
+    top: fs(22),
+    bottom: Math.round(118 / sc),
+  };
+}
 
 const view = {
   canvas: null,
@@ -185,6 +206,8 @@ function resize() {
   view.canvas.style.width = cw + 'px';
   view.canvas.style.height = ch + 'px';
   view.scale = scale;
+  view.ox = Math.round((sw - cw) / 2);
+  view.oy = Math.round((sh - ch) / 2);
 }
 
 // ---------------------------------------------------------------------
@@ -237,4 +260,38 @@ function drawText(ctx, txt, x, y, opts = {}) {
 
 function drawCenter(ctx, txt, y, opts = {}) {
   drawText(ctx, txt, VW / 2, y, Object.assign({ align: 'center' }, opts));
+}
+
+function measureTextWidth(ctx, txt, opts = {}) {
+  const size = opts.os ? fso(opts.size || 8) : (opts.raw ? (opts.size || 8) : fs(opts.size || 8));
+  ctx.font = `${size}px ${opts.font || '"Courier New", ui-monospace, monospace'}`;
+  return ctx.measureText(txt).width;
+}
+
+/** Vàries línies centrades; l'espaiat vertical usa fs() per no trepitjar-se. */
+function drawCenterBlock(ctx, lines, centerY, opts = {}) {
+  const size = opts.size || 12;
+  const gap = opts.gap != null ? opts.gap : fso(5);
+  const lineH = fs(size) + gap;
+  const blockH = lines.length * lineH - gap;
+  let y = centerY - blockH / 2 + fs(size) * 0.72;
+  const colors = opts.lineColors;
+  for (let i = 0; i < lines.length; i++) {
+    drawCenter(ctx, lines[i], y, {
+      size,
+      color: colors ? (colors[i] || opts.color) : opts.color,
+      shadow: opts.shadow,
+      sx: opts.sx,
+      sy: opts.sy,
+      os: opts.os,
+    });
+    y += lineH;
+  }
+  return { top: centerY - blockH / 2, bottom: centerY + blockH / 2, lineH };
+}
+
+function fitFontSize(ctx, text, maxW, startSize, useOs = false) {
+  let sz = startSize;
+  while (sz > 6 && measureTextWidth(ctx, text, { size: sz, os: useOs }) > maxW) sz -= 1;
+  return sz;
 }

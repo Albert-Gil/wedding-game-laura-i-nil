@@ -57,9 +57,15 @@ registerScene('boss', () => {
         }, i * 220);
       }
     } else if (a.kind === 'sides') {
+      // Entrada pels costats, repartida per tota la zona on es mou el jugador (abans només a dalt).
+      const ins = touchPlayInset();
+      const yMin = VH * 0.38 + fs(8);
+      const yMax = VH - ins.bottom - fs(8);
+      const span = yMax - yMin;
       for (let i = 0; i < a.n; i++) {
-        bshots.push({ x: -10, y: 90 + i * 28, vx: a.spd, vy: 0, e: a.emoji });
-        bshots.push({ x: VW + 10, y: 110 + i * 28, vx: -a.spd, vy: 0, e: a.emoji });
+        const y = yMin + (span * (i + 0.5)) / a.n;
+        bshots.push({ x: -12, y, vx: a.spd, vy: 0, e: a.emoji });
+        bshots.push({ x: VW + 12, y, vx: -a.spd, vy: 0, e: a.emoji });
       }
     } else if (a.kind === 'fan') {
       for (let i = 0; i < a.n; i++) {
@@ -102,8 +108,9 @@ registerScene('boss', () => {
 
       // moviment jugador
       let dx = Input.x, dy = Input.y;
-      player.x = U.clamp(player.x + dx * HERO_SPEED_BOSS * dt, 10, VW - 10);
-      player.y = U.clamp(player.y + dy * HERO_SPEED_BOSS * dt, VH * 0.45, VH - 14);
+      const ins = touchPlayInset();
+      player.x = U.clamp(player.x + dx * HERO_SPEED_BOSS * dt, ins.left, VW - ins.right);
+      player.y = U.clamp(player.y + dy * HERO_SPEED_BOSS * dt, VH * 0.38, VH - ins.bottom);
       if (player.invuln > 0) player.invuln -= dt;
 
       // foc automàtic + manual
@@ -217,9 +224,19 @@ registerScene('boss', () => {
       if (phase === 'intro') {
         const a = U.clamp(Math.min(3.0 - intro, intro) / 0.6, 0, 1);
         ctx.globalAlpha = a;
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, VH / 2 - 26, VW, 52);
-        drawCenter(ctx, 'BOSS FINAL', VH / 2 - 6, { size: 10, color: '#ff8aa6' });
-        drawCenter(ctx, 'MONSTRE DE LA PLANIFICACIÓ', VH / 2 + 8, { size: 11, color: '#fff', shadow: '#000', sx: 1, sy: 1 });
+        const introLines = ['BOSS FINAL', 'MONSTRE DE LA PLANIFICACIÓ'];
+        const gap = fso(5);
+        const lineH = fs(10) + gap;
+        const boxH = introLines.length * lineH - gap + fs(16);
+        const boxY = VH / 2 - boxH / 2;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, boxY, VW, boxH);
+        drawCenterBlock(ctx, introLines, VH / 2, {
+          size: 10,
+          lineColors: ['#ff8aa6', '#fff'],
+          shadow: '#000',
+          sx: 1,
+          sy: 1,
+        });
         ctx.globalAlpha = 1;
       }
       if (banner > 0 && phase === 'fight') {

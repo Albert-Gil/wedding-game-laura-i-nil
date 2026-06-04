@@ -51,7 +51,6 @@ registerScene('title', () => {
       // terra
       ctx.fillStyle = '#23304a'; ctx.fillRect(0, VH - 40, VW, 40);
 
-      // títol gran
       drawCenter(ctx, 'SIMULACIÓ ACTIVADA', fs(40), { size: 9, color: '#7fe9ff' });
       drawCenter(ctx, 'LAURA      NIL', fs(64), { size: 22, color: '#fff', shadow: '#ff5a7a', sx: 2, sy: 2 });
       drawHeart(ctx, VW / 2, fs(60), 6, '#ff5a7a');
@@ -94,13 +93,14 @@ registerScene('reunion', () => {
 
   return {
     enter() {
+      AudioEngine.resume();
       AudioEngine.setTrack('wedding');
       Achievements.unlock('has_arribat');
     },
     update(dt) {
       t += dt; parts.update(dt);
       if (stage === 'walk') {
-        nilX = U.lerp(nilX, nilTarget, dt * 2.4);
+        nilX = U.lerp(nilX, nilTarget, dt * 3.2);
         if (nilX > nilTarget - 2) {
           nilX = nilTarget; stage = 'dialogue';
           dlg.show([
@@ -142,13 +142,20 @@ registerScene('reunion', () => {
       if (stage === 'connect') {
         const a = U.clamp(connectT / 0.5, 0, 1);
         ctx.globalAlpha = a;
-        ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, VH / 2 - 22, VW, 44);
-        if (Math.floor(connectT * 4) % 2 === 0 || connectT > 1.2)
-          drawCenter(ctx, 'JUGADOR 2 CONNECTAT', VH / 2 - 4, { size: 14, color: '#7fe9ff', shadow: '#003', sx: 1, sy: 1 });
-        drawCenter(ctx, 'Laura s\'uneix a l\'aventura', VH / 2 + 12, { size: 8, color: '#ffd166' });
+        const boxH = fs(52);
+        const boxY = VH / 2 - boxH / 2;
+        ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, boxY, VW, boxH);
+        if (Math.floor(connectT * 4) % 2 === 0 || connectT > 1.2) {
+          const block = drawCenterBlock(ctx, ['JUGADOR 2 CONNECTAT', 'Laura s\'uneix a l\'aventura'], VH / 2, {
+            size: 12,
+            lineColors: ['#7fe9ff', '#ffd166'],
+            shadow: '#003',
+            sx: 1,
+            sy: 1,
+          });
+          drawHeart(ctx, (nilX + lauraX) / 2, block.top - fs(12) + Math.sin(t * 3) * fs(2), 4, '#ff5a7a');
+        }
         ctx.globalAlpha = 1;
-        // cor entre tots dos
-        drawHeart(ctx, (nilX + lauraX) / 2, VH - fs(50) + Math.sin(t * 3) * fs(2), 4, '#ff5a7a');
       }
     },
     onInput(a) {
@@ -162,36 +169,44 @@ registerScene('reunion', () => {
 // =====================================================================
 registerScene('finalwalk', () => {
   let t = 0;
-  const world = { w: 760 };
-  const nil = { x: 60, y: 150 };
-  const laura = { x: 44, y: 156 };
+  const pw = expandPlayWorld(760, VH);
+  const padX = pw.padX;
+  const world = { w: pw.w };
+  const nil = { x: 60 + padX, y: 150 };
+  const laura = { x: 44 + padX, y: 156 };
   let facing = 'right';
   let cam = 0;
   const parts = new Particles();
-  const archX = world.w - 70;
+  const archX = padX + 760 - 70;
   let reached = false, reachT = 0;
   const banners = [
-    { x: 180, text: 'Sant Nicolau Survivors', shown: false },
-    { x: 330, text: 'Experts en Aventures', shown: false },
-    { x: 480, text: 'Campions de la Planificació', shown: false },
-    { x: 620, text: 'Millor Equip', shown: false },
+    { x: 180 + padX, text: 'Sant Nicolau Survivors', shown: false },
+    { x: 330 + padX, text: 'Experts en Aventures', shown: false },
+    { x: 480 + padX, text: 'Campions de la Planificació', shown: false },
+    { x: 620 + padX, text: 'Millor Equip', shown: false },
   ];
   let curBanner = null, bannerT = 0;
   const petals = [];
   for (let i = 0; i < 24; i++) petals.push({ x: U.rand(0, VW), y: U.rand(-20, VH), v: U.rand(10, 24), sway: U.rand(0, 6), c: U.pick(['#ff9ec2', '#ffd166', '#fff', '#c39bff']) });
 
   return {
-    enter() { AudioEngine.setTrack('wedding'); },
+    enter() {
+      AudioEngine.resume();
+      AudioEngine.setTrack('wedding');
+    },
     update(dt) {
       t += dt; parts.update(dt);
       for (const p of petals) { p.y += p.v * dt; p.x += Math.sin(t + p.sway) * 6 * dt; if (p.y > VH + 10) { p.y = -10; p.x = U.rand(0, VW) + cam; } }
 
       if (!reached) {
+        const ins = touchPlayInset();
         let dx = Input.x, dy = Input.y;
         if (dx || dy) {
           if (dx > 0) facing = 'right'; else if (dx < 0) facing = 'left';
-          nil.x = U.clamp(nil.x + dx * HERO_SPEED_COOP * dt, 20, world.w - 10);
-          nil.y = U.clamp(nil.y + dy * HERO_SPEED_COOP_Y * dt, 120, 180);
+          const yMin = VH - ins.bottom - fs(72);
+          const yMax = VH - ins.bottom - fs(28);
+          nil.x = U.clamp(nil.x + dx * HERO_SPEED_COOP * dt, ins.left + 16, world.w - ins.right - 10);
+          nil.y = U.clamp(nil.y + dy * HERO_SPEED_COOP_Y * dt, yMin, yMax);
         }
         // Laura segueix la Nil (de la maneta)
         laura.x = U.lerp(laura.x, nil.x - 16, dt * 4.6);
@@ -254,10 +269,10 @@ registerScene('finalwalk', () => {
 
       if (bannerT > 0 && curBanner) {
         ctx.globalAlpha = U.clamp(bannerT, 0, 1);
-        drawCenter(ctx, '★ ' + curBanner + ' ★', 30, { size: 10, color: '#ffd166', shadow: '#000' });
+        drawCenter(ctx, '★ ' + curBanner + ' ★', fs(22), { size: 9, color: '#ffd166', shadow: '#000' });
         ctx.globalAlpha = 1;
       }
-      if (reached) drawCenter(ctx, '❤', VH / 2 - 30, { size: 20, color: '#ff5a7a' });
+      if (reached) drawCenter(ctx, '❤', VH / 2 - fs(36), { size: 16, color: '#ff5a7a' });
     },
     onInput() {},
   };
@@ -310,15 +325,19 @@ registerScene('ending', () => {
       const s = seq[idx];
       const a = U.clamp(t / 0.6, 0, 1) * U.clamp((s.hold - t) / 0.5, 0, 1);
       ctx.globalAlpha = a;
-      const total = s.lines.length;
-      s.lines.forEach((ln, i) => {
-        const y = VH / 2 - (total - 1) * (s.size * 0.7) + i * (s.size + 4);
-        drawCenter(ctx, ln, y, { size: s.size, color: s.color, shadow: 'rgba(0,0,0,0.6)', sx: 1, sy: 2 });
+      const block = drawCenterBlock(ctx, s.lines, VH / 2, {
+        size: s.size,
+        color: s.color,
+        shadow: 'rgba(0,0,0,0.6)',
+        sx: 1,
+        sy: 2,
       });
       ctx.globalAlpha = 1;
-      if (idx === 0) drawHeart(ctx, VW / 2, VH / 2 - fs(26), 6, '#ff5a7a');
-      if (idx === seq.length - 1 && Math.floor(t * 1.4) % 2 === 0)
-        drawCenter(ctx, Input.hasTouch ? 'Toca per continuar' : 'Prem qualsevol tecla', VH - 12, { size: 7, color: 'rgba(255,255,255,0.45)' });
+      if (idx === 0) drawHeart(ctx, VW / 2, block.top - fs(16), 6, '#ff5a7a');
+      if (idx === seq.length - 1 && Math.floor(t * 1.4) % 2 === 0) {
+        const promptY = Math.max(block.bottom + fs(18), VH - fs(16));
+        drawCenter(ctx, Input.hasTouch ? 'Toca per continuar' : 'Prem qualsevol tecla', promptY, { size: 7, color: 'rgba(255,255,255,0.45)' });
+      }
     },
     onInput(a) {
       if (a === 'any' || a === 'tap' || a === 'a') {
@@ -339,7 +358,7 @@ registerScene('achievements', () => {
     enter(opts) { from = (opts && opts.from) || 'title'; AudioEngine.setTrack('title'); },
     update(dt) {
       scroll += Input.y * 60 * dt;
-      const maxScroll = Math.max(0, ACH_DEFS.length * 22 - (VH - 50));
+      const maxScroll = Math.max(0, ACH_DEFS.length * 26 - (VH - 50));
       scroll = U.clamp(scroll, 0, maxScroll);
     },
     render(ctx) {
@@ -355,11 +374,11 @@ registerScene('achievements', () => {
         const got = Achievements.has(d.id);
         const hidden = d.hidden && !got;
         ctx.fillStyle = got ? 'rgba(120,255,180,0.10)' : 'rgba(255,255,255,0.03)';
-        ctx.fillRect(6, y - 8, VW - 12, 20);
+        ctx.fillRect(6, y - 8, VW - 12, 24);
         drawText(ctx, got ? '★' : (d.hidden ? '?' : '☆'), 12, y + 2, { size: 11, color: got ? '#ffd166' : '#566' });
         drawText(ctx, hidden ? '???' : d.title, 26, y - 1, { size: 8, color: got ? '#fff' : '#8a93a3' });
-        drawText(ctx, hidden ? 'Assoliment ocult' : d.desc, 26, y + 8, { size: 6, color: got ? '#9fe9c0' : '#5a6273' });
-        y += 22;
+        drawText(ctx, hidden ? 'Assoliment ocult' : d.desc, 26, y + 9, { size: 6, color: got ? '#9fe9c0' : '#5a6273' });
+        y += 26;
       }
       ctx.restore();
 
