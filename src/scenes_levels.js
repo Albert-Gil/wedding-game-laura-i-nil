@@ -618,7 +618,7 @@ registerScene('level3', createLevel({
 // =====================================================================
 registerScene('level4', createLevel({
   hero: 'nil',
-  track: 'wedding',   // marcha nupcial
+  track: 'wedding',   // Mendelssohn — marxa nupcial
   banner: 'NIVELL 4', subtitle: 'EL CASAMENT', introSub: 'PLANIFICANT EL CASAMENT',
   hudColor: '#ff8aa6', tokenEmoji: '✅',
   world: { w: 600, h: 420 },
