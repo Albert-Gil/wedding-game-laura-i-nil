@@ -1,5 +1,5 @@
 /* =====================================================================
-   ESCENES DE TERMINAL — LauraiNilOS
+   ESCENES DE TERMINAL — LauraiNil_OS
    Fase 1 (boot + simulació), retorn final, revelació del regal, missatge.
    ===================================================================== */
 
@@ -324,9 +324,9 @@ function drawCRT(ctx, glitch = 0, underText = false) {
 function bootProgram() {
   const ok = { status: '[ OK ]', statusColor: T.green };
   return [
-    step.pause('[ Clica per arrencar LauraiNilOS ]'),
-    step.big('LauraiNilOS', { size: 30, d: 1.8, color: T.green, click: true }),
-    step.line('LauraiNilOS v1.0', { color: T.cyan }),
+    step.pause('[ Clica per arrencar LauraiNil_OS ]'),
+    step.big('LauraiNil_OS', { size: 30, d: 1.8, color: T.green, click: true }),
+    step.line('LauraiNil_OS v1.0', { color: T.cyan }),
     step.line('(c) 1994 Institut de l\'Amor Vertader', { color: T.dim }),
     step.blank(),
     step.pause('[ Prem per inicialitzar el sistema ]'),
@@ -411,13 +411,13 @@ registerScene('boot', () => {
 });
 
 // =====================================================================
-//  Retorn a LauraiNilOS (després del final)
+//  Retorn a LauraiNil_OS (després del final)
 // =====================================================================
 function returnProgram() {
   return [
-    step.pause('[ Clica per tornar a LauraiNilOS ]'),
+    step.pause('[ Clica per tornar a LauraiNil_OS ]'),
     step.wait(0.4),
-    step.line('LauraiNilOS v1.0', { color: T.cyan }),
+    step.line('LauraiNil_OS v1.0', { color: T.cyan }),
     step.line('Reconnectant amb el sistema...'),
     step.bar('Sincronitzant', 0.9),
     step.line('Recollint dades finals...'),
@@ -468,7 +468,7 @@ function giftProgram() {
     step.pause('[ Prem per la transferència ]'),
     step.big('TRANSFER DETECTED', { size: 15, d: 1.4, color: T.amber, click: true }),
     step.fn(() => AudioEngine.sfx('powerup')),
-    step.big('+250€', { size: 40, d: 1.8, color: T.green, click: true }),
+    step.big('+€€€€', { size: 40, d: 1.8, color: T.green, click: true }),
     step.line('Contribució assignada a:', { color: T.dim }),
     step.line('FONS D\'AVENTURES FUTURES', { color: T.cyan, status: '[ ✓ ]', statusColor: T.green }),
     step.fn(() => Achievements.unlock('futur')),

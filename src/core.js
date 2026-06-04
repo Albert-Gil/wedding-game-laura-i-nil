@@ -1,5 +1,5 @@
 /* =====================================================================
-   LauraiNilOS / Laura ❤ Nil — NUCLI DEL MOTOR
+   LauraiNil_OS / Laura ❤ Nil — NUCLI DEL MOTOR
    Resolució virtual + bucle de joc + gestor d'escenes + utilitats.
    ===================================================================== */
 
@@ -9,7 +9,7 @@ const BASE_H = 216;
 const VW = 960;
 const VH = 540;
 const S = VW / BASE_W;       // 2.5× — joc, personatges, UI
-const S_OS = 3.5;            // 3.5× — terminal LauraiNilOS (més llegible)
+const S_OS = 3.5;            // 3.5× — terminal LauraiNil_OS (més llegible)
 
 // Velocitat de caminar dels personatges (px/s, espai de joc)
 const HERO_SPEED = 112;      // nivells 1–2
