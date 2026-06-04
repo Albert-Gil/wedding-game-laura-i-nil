@@ -1,5 +1,7 @@
 # Laura ❤ Nil — LauraiNilOS
 
+**Juga en línia:** https://albert-gil.github.io/wedding-game-laura-i-nil/
+
 Un regal de casament jugable. Comença com una simulació seriosa (**LauraiNilOS**) i,
 de cop, es transforma en una aventura pixel-art retro que recorre la història de la
 Laura i el Nil: l'escola de Sant Nicolau, els anys d'aventures, la vida adulta, el caos
@@ -9,8 +11,8 @@ de planificar el casament, el boss final i... el retrobament al **Mas d'Osor**.
 
 ## Com jugar-hi
 
-Només cal obrir **`index.html`** amb qualsevol navegador modern.
-No cal internet ni instal·lar res.
+Obre l'enllaç de dalt (o **`index.html`**) amb qualsevol navegador modern.
+Al mòbil, **toca la pantalla un cop** per activar el so.
 
 ### Controls
 
