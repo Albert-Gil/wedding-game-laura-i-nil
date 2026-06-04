@@ -191,6 +191,27 @@ const SM = {
   },
 };
 
+/** Drecera secreta: salta al següent tram (Shift+Alt+N o mantén A+B ~3 s). */
+const SCENE_SKIP_CHAIN = {
+  title: 'level1',
+  level1: 'level2',
+  level2: 'level3',
+  level3: 'level4',
+  level4: 'boss',
+  boss: 'reunion',
+};
+
+function skipToNextScene() {
+  const next = SCENE_SKIP_CHAIN[SM.currentName];
+  if (!next || SM.fadeDir !== 0 || SM.pending) return false;
+  if (window.AudioEngine) {
+    AudioEngine.resume();
+    AudioEngine.sfx('glitch');
+  }
+  SM.go(next, {}, 1.4);
+  return true;
+}
+
 // ---------------------------------------------------------------------
 // Redimensionament responsiu (manté relació d'aspecte, omple pantalla).
 // ---------------------------------------------------------------------

@@ -26,11 +26,34 @@ window.addEventListener('load', () => {
     else hint.classList.add('hidden');
   }, 400);
 
-  // Easter egg de teclat: tecla "r" reinicia els assoliments (per a proves/regals nous).
+  // Dreceres secretes (ordinador i mòbil).
   window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyR' && e.shiftKey && e.altKey) {
       Achievements.reset();
       location.reload();
+      return;
+    }
+    if (e.code === 'KeyN' && e.shiftKey && e.altKey) {
+      e.preventDefault();
+      skipToNextScene();
     }
   });
+
+  // A+B mantinguts (botons tàctils o Z+X / Space+X al teclat).
+  let abHoldMs = 0;
+  let abSkipLocked = false;
+  setInterval(() => {
+    if (Input.acts.a && Input.acts.b) {
+      if (abSkipLocked) return;
+      abHoldMs += 100;
+      if (abHoldMs >= 3000) {
+        abSkipLocked = true;
+        abHoldMs = 0;
+        skipToNextScene();
+      }
+    } else {
+      abHoldMs = 0;
+      abSkipLocked = false;
+    }
+  }, 100);
 });
