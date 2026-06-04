@@ -29,18 +29,18 @@ function expandPlayWorld(baseW, baseH) {
   return { w: baseW + padX * 2, h: baseH + padY * 2, padX, padY };
 }
 
-/** Marges reals dels controls tàctils (dpad esquerra, A/B dreta). */
-function touchPlayInset() {
-  if (typeof Input === 'undefined' || !Input.hasTouch) {
-    return { left: 8, right: 10, top: 16, bottom: 10 };
+/** Marges de la zona jugable (coordenades de joc, independents del scale CSS). */
+function playAreaMargin(kind) {
+  switch (kind) {
+    case 'boss':
+      return { left: 12, right: 12, top: fs(28), bottom: fs(14) };
+    case 'walk':
+      // Caminada horitzontal (y ~150), no marges de pantalla completa
+      return { left: 16, right: 16, top: 112, bottom: VH - 198 };
+    case 'level':
+    default:
+      return { left: 8, right: 8, top: 16, bottom: 6 };
   }
-  const sc = view.scale || 1;
-  return {
-    left: Math.round(168 / sc),
-    right: Math.round(158 / sc),
-    top: fs(22),
-    bottom: Math.round(118 / sc),
-  };
 }
 
 const view = {

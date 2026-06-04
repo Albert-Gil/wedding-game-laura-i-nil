@@ -88,9 +88,9 @@ function createLevel(cfg) {
           pr = rectOf(player);
         }
       }
-      const ins = touchPlayInset();
-      player.x = U.clamp(player.x, ins.left, world.w - ins.right);
-      player.y = U.clamp(player.y, ins.top, world.h - ins.bottom);
+      const m = playAreaMargin('level');
+      player.x = U.clamp(player.x, m.left, world.w - m.right);
+      player.y = U.clamp(player.y, m.top, world.h - m.bottom);
     }
 
     function floater(text, x, y, color) {

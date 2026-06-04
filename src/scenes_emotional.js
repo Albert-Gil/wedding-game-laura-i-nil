@@ -199,14 +199,12 @@ registerScene('finalwalk', () => {
       for (const p of petals) { p.y += p.v * dt; p.x += Math.sin(t + p.sway) * 6 * dt; if (p.y > VH + 10) { p.y = -10; p.x = U.rand(0, VW) + cam; } }
 
       if (!reached) {
-        const ins = touchPlayInset();
+        const m = playAreaMargin('walk');
         let dx = Input.x, dy = Input.y;
         if (dx || dy) {
           if (dx > 0) facing = 'right'; else if (dx < 0) facing = 'left';
-          const yMin = VH - ins.bottom - fs(72);
-          const yMax = VH - ins.bottom - fs(28);
-          nil.x = U.clamp(nil.x + dx * HERO_SPEED_COOP * dt, ins.left + 16, world.w - ins.right - 10);
-          nil.y = U.clamp(nil.y + dy * HERO_SPEED_COOP_Y * dt, yMin, yMax);
+          nil.x = U.clamp(nil.x + dx * HERO_SPEED_COOP * dt, m.left, world.w - m.right);
+          nil.y = U.clamp(nil.y + dy * HERO_SPEED_COOP_Y * dt, m.top, VH - m.bottom);
         }
         // Laura segueix la Nil (de la maneta)
         laura.x = U.lerp(laura.x, nil.x - 16, dt * 4.6);

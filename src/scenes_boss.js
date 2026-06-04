@@ -58,9 +58,9 @@ registerScene('boss', () => {
       }
     } else if (a.kind === 'sides') {
       // Entrada pels costats, repartida per tota la zona on es mou el jugador (abans només a dalt).
-      const ins = touchPlayInset();
-      const yMin = VH * 0.38 + fs(8);
-      const yMax = VH - ins.bottom - fs(8);
+      const bm = playAreaMargin('boss');
+      const yMin = bm.top;
+      const yMax = VH - bm.bottom;
       const span = yMax - yMin;
       for (let i = 0; i < a.n; i++) {
         const y = yMin + (span * (i + 0.5)) / a.n;
@@ -108,9 +108,9 @@ registerScene('boss', () => {
 
       // moviment jugador
       let dx = Input.x, dy = Input.y;
-      const ins = touchPlayInset();
-      player.x = U.clamp(player.x + dx * HERO_SPEED_BOSS * dt, ins.left, VW - ins.right);
-      player.y = U.clamp(player.y + dy * HERO_SPEED_BOSS * dt, VH * 0.38, VH - ins.bottom);
+      const m = playAreaMargin('boss');
+      player.x = U.clamp(player.x + dx * HERO_SPEED_BOSS * dt, m.left, VW - m.right);
+      player.y = U.clamp(player.y + dy * HERO_SPEED_BOSS * dt, m.top, VH - m.bottom);
       if (player.invuln > 0) player.invuln -= dt;
 
       // foc automàtic + manual
