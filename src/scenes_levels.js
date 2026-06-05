@@ -164,7 +164,10 @@ function createLevel(cfg) {
 
     return {
       enter() {
-        if (cfg.musicFile === 'wedding' && window.Assets) {
+        // #region agent log
+        console.log('[ENTER]', cfg.banner||cfg.track, 'musicFile='+cfg.musicFile, 'track='+cfg.track);
+        // #endregion
+        if (cfg.musicFile === 'wedding') {
           AudioEngine.stopChiptune();
           Assets.playWeddingMarch();
         } else {

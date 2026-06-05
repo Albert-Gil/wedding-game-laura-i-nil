@@ -172,7 +172,7 @@ const SM = {
     this.current = Scenes[name]();
     this.currentName = name;
     if (this.current.enter) this.current.enter(opts || {});
-    if (window.AudioEngine) AudioEngine.resume();
+    if (AudioEngine.started) AudioEngine.resume();
     this.fade = 1; this.fadeDir = -1;
   },
 
@@ -195,7 +195,7 @@ const SM = {
           this.current = Scenes[name]();
           this.currentName = name;
           if (this.current.enter) this.current.enter(opts);
-          if (window.AudioEngine) AudioEngine.resume();
+          if (AudioEngine.started) AudioEngine.resume();
           this.fadeDir = -1;
         } else {
           this.fadeDir = 0;
@@ -234,7 +234,7 @@ const SCENE_SKIP_CHAIN = {
 function skipToNextScene() {
   const next = SCENE_SKIP_CHAIN[SM.currentName];
   if (!next || SM.fadeDir !== 0 || SM.pending) return false;
-  if (window.AudioEngine) {
+  {
     AudioEngine.resume();
     AudioEngine.sfx('glitch');
   }
@@ -283,10 +283,10 @@ function bootEngine(firstScene) {
     last = now;
     if (dt > 0.05) dt = 0.05; // evita salts grans en canviar de pestanya
     SM.update(dt);
-    if (window.AudioEngine) AudioEngine.update();
-    if (window.Achievements) Achievements.update(dt);
+    AudioEngine.update();
+    Achievements.update(dt);
     SM.render(view.ctx);
-    if (window.Achievements) Achievements.renderToasts(view.ctx);
+    Achievements.renderToasts(view.ctx);
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);

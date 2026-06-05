@@ -47,7 +47,7 @@ const Achievements = {
     this.unlocked[id] = true;
     this.save();
     this.toasts.push({ title: d.title, t: 0, life: 4.2 });
-    if (window.AudioEngine) AudioEngine.sfx('star');
+    AudioEngine.sfx('star');
     return true;
   },
 
