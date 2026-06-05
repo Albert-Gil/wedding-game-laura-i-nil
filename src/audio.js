@@ -105,7 +105,7 @@ const AudioEngine = {
     this.muted = !this.muted;
     localStorage.setItem('mos_muted', this.muted ? '1' : '0');
     this.applyMute();
-    if (window.Achievements) Achievements.unlock('silenci');
+    if (typeof Achievements !== 'undefined') Achievements.unlock('silenci');
     return this.muted;
   },
 
@@ -260,7 +260,7 @@ const AudioEngine = {
     this.stopFile(name);
     this._stopMusicTimer();
     // #region agent log
-    if (name === 'weddingMarch') console.log('[WM3] _startBuffer', {ctxState:this.ctx.state,bufDuration:buf.duration,masterGain:this.master?this.master.gain.value:null,muted:this.muted});
+    if (name === 'weddingMarch') console.log('[WM3] _startBuffer', {ctxState:this.ctx.state,bufDuration:buf.duration,masterGainValue:this.master?this.master.gain.value:null,muted:this.muted,masterConnected:!!this.master});
     // #endregion
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
