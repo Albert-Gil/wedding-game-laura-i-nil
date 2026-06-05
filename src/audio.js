@@ -7,7 +7,7 @@
 /** Fitxers MP3 reals del joc. */
 const FILE_TRACKS = {
   sabadell: { url: 'assets/himne-sabadell.mp3', gain: 2.2 },
-  weddingMarch: { url: 'assets/mendelssohn-wedding-march.mp3', gain: 2.0, loop: true },
+  weddingMarch: { url: 'assets/mendelssohn-wedding-march.mp3?v=20260605b', gain: 2.0, loop: true },
 };
 
 const AudioEngine = {
@@ -237,14 +237,8 @@ const AudioEngine = {
         const ab = await res.arrayBuffer();
         const buf = await this.ctx.decodeAudioData(ab.slice(0));
         this._buffers[name] = buf;
-        // #region agent log
-        console.log('[WM-BUF] decoded OK', name, 'duration:', buf.duration);
-        // #endregion
         return buf;
       } catch (e) {
-        // #region agent log
-        console.error('[WM-BUF] decode FAILED', name, String(e));
-        // #endregion
         return null;
       } finally {
         delete this._loading[name];
@@ -259,9 +253,6 @@ const AudioEngine = {
     if (!buf || !this.ctx) return false;
     this.stopFile(name);
     this._stopMusicTimer();
-    // #region agent log
-    if (name === 'weddingMarch') console.log('[WM3] _startBuffer', {ctxState:this.ctx.state,bufDuration:buf.duration,masterGainValue:this.master?this.master.gain.value:null,muted:this.muted,masterConnected:!!this.master});
-    // #endregion
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     src.loop = opts.loop != null ? !!opts.loop : !!cfg.loop;
@@ -280,14 +271,8 @@ const AudioEngine = {
     this._currentFile = name;
     try {
       src.start(0);
-      // #region agent log
-      if (name === 'weddingMarch') console.log('[WM4] src.start OK', {ctxStateAfter:this.ctx.state,currentFile:this._currentFile});
-      // #endregion
       return true;
     } catch (e) {
-      // #region agent log
-      if (name === 'weddingMarch') console.error('[WM4] src.start THREW', String(e));
-      // #endregion
       return false;
     }
   },
@@ -306,11 +291,7 @@ const AudioEngine = {
     if (!this.ensureCtx()) return false;
     this._stopMusicTimer();
     this._fileQueue = { name, opts };
-    // #region agent log
-    const ok = this._tryPlayQueued();
-    console.log('[WM-REQ]', name, {ok, ctxState: this.ctx.state, hasBuffer: !!this._buffers[name], playing: this.isFilePlaying(name)});
-    // #endregion
-    return ok;
+    return this._tryPlayQueued();
   },
 
   _tryPlayQueued() {
@@ -377,9 +358,6 @@ const AudioEngine = {
     // Marxa nupcial real (MP3), no chiptune.
     if (name === 'wedding') {
       this.stopChiptune();
-      // #region agent log
-      console.log('[WM-SETTRACK] wedding -> MP3');
-      // #endregion
       this.requestFile('weddingMarch');
       return;
     }

@@ -164,9 +164,6 @@ function createLevel(cfg) {
 
     return {
       enter() {
-        // #region agent log
-        console.log('[ENTER]', cfg.banner||cfg.track, 'track='+cfg.track);
-        // #endregion
         AudioEngine.resume();
         if (cfg.track) AudioEngine.setTrack(cfg.track);
         resetLevel(false);
