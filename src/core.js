@@ -36,7 +36,8 @@ function playAreaMargin(kind) {
       return { left: 12, right: 12, top: fs(28), bottom: fs(14) };
     case 'walk':
       // Caminada horitzontal (y ~150), no marges de pantalla completa
-      return { left: 16, right: 16, top: 112, bottom: VH - 198 };
+      // Marges en coordenades de pantalla (0..VH). S'utilitzen a `finalwalk`.
+      return { left: 16, right: 16, top: 220, bottom: VH - 70 };
     case 'level':
     default:
       return { left: 8, right: 8, top: 16, bottom: 6 };

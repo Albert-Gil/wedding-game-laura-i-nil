@@ -413,15 +413,24 @@ function drawDecor(ctx, d, camX, camY) {
       const pad = fs(4);
       const minW = fs(28);
       const maxW = fs(110);
-      const fontSize = fitFontSize(ctx, txt, maxW - pad * 2, 7);
+      const fontSize = fitFontSize(ctx, txt, maxW - pad * 2, 9);
       const txtW = measureTextWidth(ctx, txt, { size: fontSize });
       const boardW = U.clamp(Math.ceil(txtW + pad * 2), minW, maxW);
-      const boardH = fs(11);
+
+      // `y` is the sign anchor; `drawText()` uses `textBaseline=middle`, so we position the
+      // background around the computed text box to avoid letters poking out.
+      const textY = y - fs(16);
+      const textHalfH = fs(fontSize) * 0.52;
+      const boardH = Math.ceil(fs(fontSize) + fs(4));
+      const boardY = Math.round(textY - boardH / 2);
+
       ctx.fillStyle = '#6b4a2a';
       ctx.fillRect(Math.round(x - 1), Math.round(y - fs(12)), 2, fs(12));
+
       ctx.fillStyle = d.c || '#3f7fd6';
-      ctx.fillRect(Math.round(x - boardW / 2), Math.round(y - fs(22)), boardW, boardH);
-      drawText(ctx, txt, x, y - fs(16), { size: fontSize, color: '#fff', align: 'center' });
+      ctx.fillRect(Math.round(x - boardW / 2), boardY, boardW, boardH);
+
+      drawText(ctx, txt, x, textY, { size: fontSize, color: '#fff', align: 'center' });
       break;
     }
     case 'flower': ctx.fillStyle = d.c || '#ff7a98'; ctx.fillRect(x - 1, y - 3, 2, 3); ctx.fillStyle = '#3aae62'; ctx.fillRect(x, y, 1, 2); break;

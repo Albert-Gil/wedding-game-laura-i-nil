@@ -176,12 +176,14 @@ registerScene('finalwalk', () => {
   const pw = expandPlayWorld(760, VH);
   const padX = pw.padX;
   const world = { w: pw.w };
-  const nil = { x: 60 + padX, y: 150 };
-  const laura = { x: 44 + padX, y: 156 };
+  // Peu a peu tots dos cauen cap a la zona "terra" (prat) de la part inferior.
+  const nil = { x: 60 + padX, y: VH - 130 };
+  const laura = { x: 44 + padX, y: VH - 124 };
   let facing = 'right';
   let cam = 0;
   const parts = new Particles();
   const archX = padX + 760 - 70;
+  const archY = VH - 80;
   let reached = false, reachT = 0;
   const banners = [
     { x: 180 + padX, text: 'Sant Nicolau Survivors', shown: false },
@@ -217,7 +219,7 @@ registerScene('finalwalk', () => {
         if (dx || dy) {
           if (dx > 0) facing = 'right'; else if (dx < 0) facing = 'left';
           nil.x = U.clamp(nil.x + dx * HERO_SPEED_COOP * dt, m.left, world.w - m.right);
-          nil.y = U.clamp(nil.y + dy * HERO_SPEED_COOP_Y * dt, m.top, VH - m.bottom);
+          nil.y = U.clamp(nil.y + dy * HERO_SPEED_COOP_Y * dt, m.top, m.bottom);
         }
         // Laura segueix la Nil (de la maneta)
         laura.x = U.lerp(laura.x, nil.x - 16, dt * 4.6);
@@ -255,7 +257,7 @@ registerScene('finalwalk', () => {
           reached = true; reachT = 0;
           Achievements.unlock('equip');
           AudioEngine.sfx('win');
-          parts.initialConfetti(archX, 138, 28, { spd: 95, up: 45 });
+          parts.initialConfetti(archX, archY - fs(20), 28, { spd: 95, up: 45 });
           parts.initialConfetti(nil.x, nil.y - fs(18), 18, { spd: 75, up: 55 });
           parts.initialConfetti(laura.x, laura.y - fs(18), 18, { spd: 75, up: 55 });
         }
@@ -282,12 +284,19 @@ registerScene('finalwalk', () => {
         ctx.fillRect(fx, 175 + (i % 3) * 4, 2, 2);
       }
       // arbres
-      drawPine(ctx, 120 - cam, 130, 1); drawPine(ctx, 420 - cam, 120, 1.2); drawPine(ctx, 300 - cam, 185);
+      drawPine(ctx, 120 - cam, archY - 100, 1);
+      drawPine(ctx, 420 - cam, archY - 120, 1.2);
+      drawPine(ctx, 300 - cam, archY - 70, 1);
       // arc al final
-      drawArch(ctx, archX - cam, 175);
+      drawArch(ctx, archX - cam, archY);
       // catifa cap a l'arc
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.beginPath(); ctx.moveTo(0 - cam + 40, VH); ctx.lineTo(archX - cam - 8, 175); ctx.lineTo(archX - cam + 8, 175); ctx.lineTo(VW, VH); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0 - cam + 40, VH);
+      ctx.lineTo(archX - cam - 8, archY);
+      ctx.lineTo(archX - cam + 8, archY);
+      ctx.lineTo(VW, VH);
+      ctx.fill();
 
       // herois (ordre per y)
       const list = [{ h: HEROES.laura, x: laura.x, y: laura.y }, { h: HEROES.nil, x: nil.x, y: nil.y }].sort((a, b) => a.y - b.y);
@@ -345,7 +354,6 @@ registerScene('ending', () => {
   const seq = [
     { lines: ['LAURA ❤ NIL'], size: 24, color: '#fff', hold: 2.6, sfx: 'heart' },
     { lines: ['MISSIÓ COMPLETADA'], size: 16, color: '#ffd166', hold: 2.4, sfx: 'win' },
-    { lines: ['Que sigueu molt feliços'], size: 16, color: '#ff8aa6', hold: 3.2, sfx: 'heart' },
     { lines: ['MARRIAGE MODE', 'UNLOCKED'], size: 16, color: '#ff8aa6', hold: 3.0, sfx: 'powerup' },
     { lines: ['Jugador 1: Nil', 'Jugador 2: Laura', 'Vides restants: ∞'], size: 11, color: '#fff', hold: 3.2, mono: true },
     { lines: ['"La veritable aventura', 'comença ara."'], size: 13, color: '#ffd166', hold: 3.4 },
@@ -448,10 +456,12 @@ registerScene('credits', () => {
     },
     update(dt) {
       t += dt;
+      if (!lofi) lofi = buildLofiImage();
     },
     render(ctx) {
       ctx.fillStyle = '#08080a';
       ctx.fillRect(0, 0, VW, VH);
+      if (!lofi) lofi = buildLofiImage();
       const a = U.clamp(t / 0.8, 0, 1);
       const w = fs(180), h = fs(180), x = Math.round(VW / 2 - w / 2), y = Math.round(VH / 2 - h / 2 - fs(18));
       ctx.save();
