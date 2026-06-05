@@ -5,6 +5,7 @@
 function unlockAudio() {
   AudioEngine.ensureCtx();
   AudioEngine.resume();
+  if (window.Assets) Assets.primeAudio();
 }
 window.addEventListener('load', () => {
   Achievements.load();

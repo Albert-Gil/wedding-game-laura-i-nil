@@ -27,6 +27,8 @@ const step = {
   /** Atura fins que l'usuari cliqui o premi una tecla. */
   pause: (text) => ({ type: 'prompt', text: text || '[ Clica o prem una tecla per continuar ]' }),
   go: (scene, opts, speed) => ({ type: 'go', scene, opts, speed }),
+  /** Mostra un retrat pixelat (nom d'imatge a Assets.images). */
+  portrait: (name) => ({ type: 'portrait', name }),
 };
 
 // =====================================================================
@@ -49,6 +51,7 @@ class TerminalRunner {
     this.defSpeed = cfg.speed || 38; // caràcters/segon (més lent = més llegible)
     this.scan = cfg.scan !== false;
     this.done = false;
+    this.portrait = null;
     this._advance();
   }
 
@@ -73,7 +76,8 @@ class TerminalRunner {
         this.state = 'big';
         AudioEngine.sfx('confirm');
         break;
-      case 'clear': this.lines = []; this._advance(); break;
+      case 'clear': this.lines = []; this.portrait = null; this._advance(); break;
+      case 'portrait': this.portrait = s.name; this._advance(); break;
       case 'glitch': this.glitch = s.d; this.state = 'glitch'; this.timer = s.d; AudioEngine.sfx('glitch'); break;
       case 'fn': try { s.fn(); } catch (e) {} this._advance(); break;
       case 'prompt': this.waitingInput = true; this.promptText = s.text; this.state = 'prompt'; break;
@@ -258,21 +262,61 @@ class TerminalRunner {
     if (this.bar) {
       y += fso(4);
       const p = U.clamp(this.bar.t / this.bar.d, 0, 1);
-      const w = Math.min(fso(220), VW - padX * 2);
+      const pctStr = Math.floor(p * 100) + '%';
+      const pctW = measureTextWidth(ctx, pctStr, { size: 8, os: true });
+      const w = Math.min(fso(220), VW - padX * 2 - pctW - fso(10));
       const x = padX;
       const by = y + fso(2);
+      const barH = fso(8);
       drawText(ctx, this.bar.label, x, by, { size: 9, color: this.bar.color, os: true });
       const bbY = by + fso(12);
+      const innerPad = fso(2);
+      const innerW = w - innerPad * 2;
+      const innerH = barH - innerPad * 2;
+
       ctx.strokeStyle = this.bar.color;
       ctx.lineWidth = 1;
-      ctx.strokeRect(x + 0.5, bbY + 0.5, w, fso(8));
-      const filled = Math.floor(p * 20);
+      ctx.strokeRect(x + 0.5, bbY + 0.5, w, barH);
+
+      const fillW = Math.max(0, innerW * p);
+      if (fillW > 0) {
+        ctx.fillStyle = this.bar.color;
+        ctx.globalAlpha = 0.4;
+        ctx.fillRect(x + innerPad, bbY + innerPad, fillW, innerH);
+        ctx.globalAlpha = 1;
+      }
+
+      const barFont = fso(8);
+      ctx.font = `${barFont}px "Courier New", ui-monospace, monospace`;
+      const charW = ctx.measureText('█').width || barFont * 0.6;
+      const blocks = Math.max(4, Math.floor(innerW / charW));
+      const filled = Math.min(blocks, Math.round(p * blocks));
       let s = '';
-      for (let k = 0; k < 20; k++) s += k < filled ? '█' : '·';
-      drawText(ctx, s, x + fso(3), bbY + fso(5), { size: 8, color: this.bar.color, os: true });
-      const pct = Math.floor(p * 100) + '%';
-      drawText(ctx, pct, x + w + fso(6), bbY + fso(5), { size: 8, color: this.bar.color, os: true });
+      for (let k = 0; k < blocks; k++) s += k < filled ? '█' : '·';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = this.bar.color;
+      ctx.fillText(s, x + innerPad, bbY + barH / 2);
+      drawText(ctx, pctStr, x + w + fso(6), bbY + fso(5), { size: 8, color: this.bar.color, os: true });
       y = bbY + fso(14);
+    }
+
+    if (this.portrait && window.Assets) {
+      const ph = fso(76);
+      const px = VW - padX - fso(6);
+      const py = marginTop + fso(52);
+      const framePad = fso(3);
+      const pw = Math.round(ph * 0.72);
+      ctx.strokeStyle = T.cyan;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(
+        Math.round(px - pw - framePad),
+        Math.round(py - ph / 2 - framePad),
+        Math.round(pw + framePad * 2),
+        Math.round(ph + framePad * 2),
+      );
+      drawText(ctx, 'ID:', px - pw - fso(6), py - ph / 2 - fso(2), { size: 7, color: T.dim, os: true, align: 'right' });
+      Assets.drawPixelPortrait(ctx, px - pw / 2, py, ph, this.portrait, 0.92);
     }
 
     if (this.big) {
@@ -461,6 +505,7 @@ function giftProgram() {
     step.line('Patrocinador detectat.', { color: T.green }),
     step.blank(),
     step.line('Nom: Dr. Albert Gil Esmendia (no soc metge)', { color: T.cyan }),
+    step.portrait('albert'),
     step.line('Classificació: Wedding Investor', { color: T.amber }),
     step.line('Tipus: Contribució estratègica', { color: T.white }),
     step.wait(0.6),

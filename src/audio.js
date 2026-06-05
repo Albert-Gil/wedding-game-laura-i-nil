@@ -90,6 +90,9 @@ const AudioEngine = {
     this.muted = !this.muted;
     localStorage.setItem('mos_muted', this.muted ? '1' : '0');
     this.applyMute();
+    if (window.Assets && Assets.sounds.sabadell) {
+      Assets.sounds.sabadell.volume = this.muted ? 0 : 0.85;
+    }
     if (window.Achievements) Achievements.unlock('silenci');
     return this.muted;
   },
