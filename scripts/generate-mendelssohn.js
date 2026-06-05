@@ -1,19 +1,22 @@
 /**
  * Genera src/mendelssohn_wedding_march.js des d'un fitxer MIDI.
- * node scripts/generate-mendelssohn.js <file.mid>
+ * node scripts/generate-mendelssohn.js <file.mid> [--bars=8]
  */
 const fs = require('fs');
 const path = require('path');
-const { parseTracks, trackToNotes, monophonicMelody, midiToName } = require('./parse-midi-lib');
+const { parseTracks, trackToNotes, monophonicMelody } = require('./parse-midi-lib');
 
 const midiPath = process.argv[2] || path.join(__dirname, '../assets/mendelssohn-wedding-march.mid');
-const BARS = 8;
-const BPM = 96;
-const MAX_MIDI = 72; // fins a C5 (melodia principal)
+const barsArg = process.argv.find((a) => a.startsWith('--bars='));
+const BARS = barsArg ? parseInt(barsArg.split('=')[1], 10) : 8;
+const MAX_MIDI = 96; // fins a C7 — no retalla la melodia del MIDI
 
 const buf = fs.readFileSync(midiPath);
 const { tpq, tracks } = parseTracks(buf);
+const tempoUs = tracks.find((t) => t.tempo)?.tempo || 500000;
+const BPM = Math.round(60000000 / tempoUs);
 const maxTick = BARS * 4 * tpq;
+
 const allNotes = [];
 for (const tr of tracks) allNotes.push(...trackToNotes(tr.events, tpq));
 allNotes.sort((a, b) => a.start - b.start);
@@ -28,7 +31,6 @@ melody = melody.filter(([n]) => {
   return midi <= MAX_MIDI;
 });
 
-// Compacta: fusiona mateixa nota consecutiva
 const compact = [];
 for (const [n, d] of melody) {
   if (compact.length && compact[compact.length - 1][0] === n) {
@@ -55,8 +57,8 @@ const fmt = (arr) => arr.map(([n, d]) => {
 
 const out = `/* =====================================================================
    Mendelssohn — Wedding March Op. 61 No. 2
-   Melodia extreta de partitura MIDI (assets/mendelssohn-wedding-march.mid).
-   Edita OPENING_MELODY per ajustar notes o ritme.
+   Melodia extreta de ${path.basename(midiPath)} (♩=${BPM}, ${BARS} compassos).
+   Regenera: node scripts/generate-mendelssohn.js assets/mendelssohn-wedding-march.mid
    ===================================================================== */
 
 const MendelssohnWeddingMarch = {
@@ -146,7 +148,7 @@ ${fmt(melody)}
 
     const endLen = Math.min(len, 40);
     const weddingEnd = {
-      bpm: 80,
+      bpm: Math.round(this.bpm * 0.84),
       beatDiv: this.beatDiv,
       len: endLen,
       vol: 0.65,
@@ -176,4 +178,5 @@ const dest = path.join(__dirname, '../src/mendelssohn_wedding_march.js');
 fs.writeFileSync(dest, out);
 const eighths = melody.reduce((s, [, d]) => s + d, 0);
 console.log('Wrote', dest);
-console.log('Events:', melody.length, 'Eighths:', eighths, 'Loop sec @', BPM, 'bpm:', (eighths * 60 / (BPM * 2)).toFixed(1));
+console.log('BPM from MIDI:', BPM, '| Events:', melody.length, '| Eighths:', eighths);
+console.log('Loop sec:', (eighths * 60 / (BPM * 2)).toFixed(2));

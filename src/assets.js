@@ -7,13 +7,21 @@ const Assets = {
   sounds: {},
   _pixelCache: {},
   _sabadellPlaying: false,
+  _sabadellTimer: null,
+  HIMNE_SABADELL_SRC: 'assets/himne-sabadell.mp3', // himne-versio-moderna-ce-sabadell-tall.mp3
 
   loadImage(name, src) {
     return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => { this.images[name] = img; resolve(img); };
-      img.onerror = () => resolve(null);
-      img.src = src;
+      let img = this.images[name];
+      if (!img) {
+        img = new Image();
+        this.images[name] = img;
+      }
+      const done = (ok) => resolve(ok ? img : null);
+      if (img.complete && img.naturalWidth) return done(true);
+      img.onload = () => done(true);
+      img.onerror = () => done(null);
+      if (!img.src || !img.src.includes(src.replace(/^\//, ''))) img.src = src;
     });
   },
 
@@ -42,12 +50,39 @@ const Assets = {
     });
   },
 
+  _getSabadellAudio() {
+    const src = this.HIMNE_SABADELL_SRC;
+    let a = this.sounds.sabadell;
+    if (!a) {
+      a = new Audio(src);
+      a.preload = 'auto';
+      this.sounds.sabadell = a;
+    }
+    if (!a.src || !a.src.endsWith('himne-sabadell.mp3')) {
+      a.src = src;
+      a.load();
+    }
+    return a;
+  },
+
+  _stopSabadellPlayback() {
+    if (this._sabadellTimer != null) {
+      clearTimeout(this._sabadellTimer);
+      this._sabadellTimer = null;
+    }
+    const a = this.sounds.sabadell;
+    if (a) {
+      a.onended = null;
+      try { a.pause(); } catch (e) {}
+    }
+    this._sabadellPlaying = false;
+  },
+
   /** Desbloqueja reproducció HTML5 (iOS/Safari) després del primer gest. */
   primeAudio() {
-    const a = this.sounds.sabadell;
-    if (!a) return;
+    const a = this._getSabadellAudio();
     const vol = a.volume;
-    a.volume = 0;
+    a.volume = 0.001;
     const p = a.play();
     if (!p || typeof p.then !== 'function') {
       a.volume = vol;
@@ -64,21 +99,14 @@ const Assets = {
     return Promise.all([
       this.loadImage('logo', 'assets/logo.png'),
       this.loadImage('albert', 'assets/albert.png'),
-      this.loadSound('sabadell', 'assets/himne-sabadell.mp3'),
+      this.loadSound('sabadell', this.HIMNE_SABADELL_SRC),
     ]);
   },
 
   /** Himne del CE Sabadell en recollir la pilota ⚽ (nivell 1). */
   playSabadellHimne() {
-    const src = 'assets/himne-sabadell.mp3';
-    let a = this.sounds.sabadell;
-    if (!a) {
-      a = new Audio(src);
-      a.preload = 'auto';
-      this.sounds.sabadell = a;
-      a.src = src;
-      a.load();
-    }
+    const a = this._getSabadellAudio();
+    this._stopSabadellPlayback();
     if (window.AudioEngine) {
       AudioEngine.ensureCtx();
       if (AudioEngine.ctx && AudioEngine.ctx.state === 'suspended') AudioEngine.ctx.resume();
@@ -87,40 +115,57 @@ const Assets = {
     }
     this._sabadellPlaying = true;
     const muted = window.AudioEngine && AudioEngine.muted;
+
+    const onDone = () => {
+      if (!this._sabadellPlaying) return;
+      this._stopSabadellPlayback();
+      if (window.AudioEngine && AudioEngine.track) AudioEngine._restartMusicTimer();
+    };
+
     const start = () => {
       if (!this._sabadellPlaying) return;
-      a.volume = muted ? 0 : 0.85;
+      try { a.pause(); } catch (e) {}
       a.currentTime = 0;
+      a.volume = muted ? 0 : 0.85;
       const p = a.play();
       if (p && typeof p.catch === 'function') {
         p.catch(() => {
-          a.addEventListener('canplay', () => {
+          const retry = () => {
+            if (!this._sabadellPlaying) return;
             a.volume = muted ? 0 : 0.85;
-            a.play().catch(() => {});
-          }, { once: true });
+            a.play().catch(onDone);
+          };
+          a.addEventListener('canplay', retry, { once: true });
           a.load();
         });
       }
     };
+
+    a.onended = onDone;
+    const scheduleFallback = () => {
+      if (this._sabadellTimer != null) clearTimeout(this._sabadellTimer);
+      const sec = (a.duration && isFinite(a.duration) && a.duration > 0) ? a.duration : 7.85;
+      this._sabadellTimer = setTimeout(onDone, Math.round(sec * 1000) + 400);
+    };
+    a.addEventListener('loadedmetadata', scheduleFallback, { once: true });
+    scheduleFallback();
+
     if (a.readyState >= 2) start();
     else {
       a.addEventListener('canplay', start, { once: true });
       a.load();
     }
-    const resume = () => {
-      if (!this._sabadellPlaying) return;
-      this._sabadellPlaying = false;
-      if (window.AudioEngine && AudioEngine.track) AudioEngine._restartMusicTimer();
-    };
-    a.onended = resume;
-    setTimeout(resume, (a.duration && isFinite(a.duration) ? a.duration * 1000 : 12000) + 200);
     return true;
   },
 
   /** Retrat en estil pixel art (escala baixa + nearest-neighbor). */
   drawPixelPortrait(ctx, cx, cy, height, name = 'albert', alpha = 1) {
     const img = this.images[name];
-    if (!img || !img.complete || !img.naturalWidth) return false;
+    if (!img) return false;
+    if (!img.complete || !img.naturalWidth) {
+      if (!img.src) img.src = `assets/${name}.png`;
+      return false;
+    }
     const key = `${name}:${height}`;
     let cache = this._pixelCache[key];
     if (!cache) {

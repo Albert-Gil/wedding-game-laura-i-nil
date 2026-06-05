@@ -15,7 +15,7 @@ const T = {
 
 // ----- Constructors de passos (sucre sintàctic) -----
 const step = {
-  line: (text, opts = {}) => ({ type: 'line', text, color: opts.color || T.green, status: opts.status, statusColor: opts.statusColor, speed: opts.speed, indent: opts.indent || 0 }),
+  line: (text, opts = {}) => ({ type: 'line', text, color: opts.color || T.green, status: opts.status, statusColor: opts.statusColor, speed: opts.speed, indent: opts.indent || 0, portrait: opts.portrait }),
   wait: (d) => ({ type: 'wait', d }),
   bar: (label, d, opts = {}) => ({ type: 'bar', label, d, color: opts.color || T.green }),
   big: (text, opts = {}) => ({ type: 'big', text, color: opts.color || T.green, d: opts.d || 1.4, size: opts.size || 22 }),
@@ -62,6 +62,7 @@ class TerminalRunner {
     this.cur = s;
     switch (s.type) {
       case 'line':
+        if (s.portrait) this.portrait = s.portrait;
         this.lines.push({ full: s.text, color: s.color, reveal: 0, status: s.status, statusColor: s.statusColor || T.green, done: false, indent: s.indent });
         this.state = 'typing';
         this._spd = s.speed || this.defSpeed;
@@ -264,59 +265,27 @@ class TerminalRunner {
       const p = U.clamp(this.bar.t / this.bar.d, 0, 1);
       const pctStr = Math.floor(p * 100) + '%';
       const pctW = measureTextWidth(ctx, pctStr, { size: 8, os: true });
-      const w = Math.min(fso(220), VW - padX * 2 - pctW - fso(10));
+      const w = Math.min(fso(220), VW - padX * 2 - pctW - fso(8));
       const x = padX;
       const by = y + fso(2);
-      const barH = fso(8);
       drawText(ctx, this.bar.label, x, by, { size: 9, color: this.bar.color, os: true });
       const bbY = by + fso(12);
-      const innerPad = fso(2);
-      const innerW = w - innerPad * 2;
-      const innerH = barH - innerPad * 2;
-
+      const pad = fso(3);
+      const innerW = w - pad * 2;
+      const barFont = fso(8);
+      ctx.font = `${barFont}px "Courier New", ui-monospace, monospace`;
+      const charW = ctx.measureText('█').width || barFont * 0.55;
+      const blocks = Math.max(8, Math.floor(innerW / charW));
+      const filled = p >= 1 ? blocks : Math.min(blocks, Math.round(p * blocks));
+      let s = '';
+      for (let k = 0; k < blocks; k++) s += k < filled ? '█' : '·';
+      const barH = barFont + fso(2);
       ctx.strokeStyle = this.bar.color;
       ctx.lineWidth = 1;
       ctx.strokeRect(x + 0.5, bbY + 0.5, w, barH);
-
-      const fillW = Math.max(0, innerW * p);
-      if (fillW > 0) {
-        ctx.fillStyle = this.bar.color;
-        ctx.globalAlpha = 0.4;
-        ctx.fillRect(x + innerPad, bbY + innerPad, fillW, innerH);
-        ctx.globalAlpha = 1;
-      }
-
-      const barFont = fso(8);
-      ctx.font = `${barFont}px "Courier New", ui-monospace, monospace`;
-      const charW = ctx.measureText('█').width || barFont * 0.6;
-      const blocks = Math.max(4, Math.floor(innerW / charW));
-      const filled = Math.min(blocks, Math.round(p * blocks));
-      let s = '';
-      for (let k = 0; k < blocks; k++) s += k < filled ? '█' : '·';
-      ctx.textBaseline = 'middle';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = this.bar.color;
-      ctx.fillText(s, x + innerPad, bbY + barH / 2);
-      drawText(ctx, pctStr, x + w + fso(6), bbY + fso(5), { size: 8, color: this.bar.color, os: true });
-      y = bbY + fso(14);
-    }
-
-    if (this.portrait && window.Assets) {
-      const ph = fso(76);
-      const px = VW - padX - fso(6);
-      const py = marginTop + fso(52);
-      const framePad = fso(3);
-      const pw = Math.round(ph * 0.72);
-      ctx.strokeStyle = T.cyan;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(
-        Math.round(px - pw - framePad),
-        Math.round(py - ph / 2 - framePad),
-        Math.round(pw + framePad * 2),
-        Math.round(ph + framePad * 2),
-      );
-      drawText(ctx, 'ID:', px - pw - fso(6), py - ph / 2 - fso(2), { size: 7, color: T.dim, os: true, align: 'right' });
-      Assets.drawPixelPortrait(ctx, px - pw / 2, py, ph, this.portrait, 0.92);
+      drawText(ctx, s, x + pad, bbY + fso(4), { size: 8, color: this.bar.color, os: true });
+      drawText(ctx, pctStr, x + w + fso(6), bbY + fso(4), { size: 8, color: this.bar.color, os: true });
+      y = bbY + barH + fso(4);
     }
 
     if (this.big) {
@@ -337,8 +306,38 @@ class TerminalRunner {
       drawCenter(ctx, this.promptText, VH - fso(20), { size: promptSize, color: T.amber, os: true });
     }
 
+    this._drawPortrait(ctx);
+
     if (this.scan) drawCRT(ctx, this.glitch, false);
     ctx.imageSmoothingEnabled = smooth;
+  }
+
+  /** Retrat pixelat (per sobre del vel de step.big) quan surt el patrocinador. */
+  _drawPortrait(ctx) {
+    if (!this.portrait || !window.Assets) return;
+    const name = this.portrait;
+    const img = Assets.images[name];
+    if (!img) return;
+    const ph = fso(92);
+    const pad = fso(14);
+    const cx = VW - pad - fso(18);
+    const cy = VH * 0.4;
+    const aspect = (img.naturalWidth && img.naturalHeight) ? img.naturalWidth / img.naturalHeight : 0.79;
+    const dh = ph;
+    const dw = Math.round(dh * aspect);
+    const bx = Math.round(cx - dw / 2 - fso(5));
+    const by = Math.round(cy - dh / 2 - fso(5));
+    const bw = dw + fso(10);
+    const bh = dh + fso(10);
+    ctx.fillStyle = 'rgba(2,28,18,0.92)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = T.cyan;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+    drawText(ctx, 'PATROCINADOR', bx + fso(6), by + fso(8), { size: 7, color: T.dim, os: true });
+    if (!Assets.drawPixelPortrait(ctx, cx, cy, ph, name, 1)) {
+      drawText(ctx, '[foto]', cx, cy, { size: 10, color: T.dim, os: true, align: 'center' });
+    }
   }
 }
 
@@ -504,8 +503,7 @@ function giftProgram() {
     step.wait(0.3),
     step.line('Patrocinador detectat.', { color: T.green }),
     step.blank(),
-    step.line('Nom: Dr. Albert Gil Esmendia (no soc metge)', { color: T.cyan }),
-    step.portrait('albert'),
+    step.line('Nom: Dr. Albert Gil Esmendia (no soc metge)', { color: T.cyan, portrait: 'albert' }),
     step.line('Classificació: Wedding Investor', { color: T.amber }),
     step.line('Tipus: Contribució estratègica', { color: T.white }),
     step.wait(0.6),
@@ -531,7 +529,11 @@ function giftProgram() {
 registerScene('gift', () => {
   let runner;
   return {
-    enter() { AudioEngine.setTrack('weddingEnd'); runner = new TerminalRunner(giftProgram()); },
+    enter() {
+      if (window.Assets) Assets.loadImage('albert', 'assets/albert.png');
+      AudioEngine.setTrack('weddingEnd');
+      runner = new TerminalRunner(giftProgram());
+    },
     update(dt) { runner.update(dt); },
     render(ctx) { runner.render(ctx); },
     onInput(a) {

@@ -26,8 +26,15 @@ if (opening !== 'C4 C4 C4 C4') {
   console.error('FAIL: obertura esperada C4 C4 C4 C4, obtingut', opening);
   ok = false;
 }
-if (fourCs < 1.15 || fourCs > 1.45) {
-  console.error('FAIL: 4 Do inicials fora de rang a ♩=96');
+// ♩=155 del MIDI: 4 corxeres ≈ 0,77 s
+const expectFour = 60 / (wedding.bpm * wedding.beatDiv) * 4;
+const tol = 0.12;
+if (fourCs < expectFour - tol || fourCs > expectFour + tol) {
+  console.error('FAIL: 4 Do inicials fora de rang (esperat ~' + expectFour.toFixed(2) + 's)');
+  ok = false;
+}
+if (wedding.bpm !== 155) {
+  console.error('FAIL: BPM esperat 155 (meta del MIDI), obtingut', wedding.bpm);
   ok = false;
 }
 if (ok) console.log('OK: tempo i obertura Mendelssohn');

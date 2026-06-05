@@ -1,11 +1,11 @@
 /* =====================================================================
    Mendelssohn — Wedding March Op. 61 No. 2
-   Melodia extreta de partitura MIDI (assets/mendelssohn-wedding-march.mid).
-   Edita OPENING_MELODY per ajustar notes o ritme.
+   Melodia extreta de mendelssohn-wedding-march.mid (♩=155, 8 compassos).
+   Regenera: node scripts/generate-mendelssohn.js assets/mendelssohn-wedding-march.mid
    ===================================================================== */
 
 const MendelssohnWeddingMarch = {
-  bpm: 96,
+  bpm: 155,
   beatDiv: 2,
 
   OPENING_MELODY: [
@@ -46,9 +46,29 @@ const MendelssohnWeddingMarch = {
     ['G4', 1],
     [null, 1],
     ['G4', 4],
-    ['C5', 7],
+    ['C6', 4],
+    ['B5', 3],
+    ['F#5', 1],
+    ['A5', 2],
+    ['G5', 2],
+    ['F5', 2],
+    ['D5', 2],
+    ['C5', 1],
+    ['D5', 3],
+    ['C5', 1],
+    ['D5', 3],
+    ['C5', 1],
+    ['D5', 3],
+    ['C5', 1],
+    ['D5', 3],
+    ['C5', 1],
+    ['D5', 3],
+    ['C5', 2],
     ['B4', 1],
+    ['D5', 3],
     ['G4', 2],
+    ['D5', 1],
+    ['E5', 2],
     ['C4', 1],
     ['E4', 1],
     ['G4', 1],
@@ -134,7 +154,7 @@ const MendelssohnWeddingMarch = {
 
     const endLen = Math.min(len, 40);
     const weddingEnd = {
-      bpm: 80,
+      bpm: Math.round(this.bpm * 0.84),
       beatDiv: this.beatDiv,
       len: endLen,
       vol: 0.65,
