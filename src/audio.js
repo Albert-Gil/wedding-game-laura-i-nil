@@ -167,10 +167,79 @@ const AudioEngine = {
     }
   },
 
+  // ---- Reproducció de fitxers MP3 via Web Audio (fiable a Firefox/iOS) ----
+  buffers: {},
+  _bufLoading: {},
+  _bufSources: {},
+
+  loadBuffer(name, url) {
+    if (this.buffers[name]) return Promise.resolve(this.buffers[name]);
+    if (this._bufLoading[name]) return this._bufLoading[name];
+    if (!this.ensureCtx()) return Promise.resolve(null);
+    const ctx = this.ctx;
+    const p = fetch(url)
+      .then((r) => r.arrayBuffer())
+      .then((ab) => new Promise((res, rej) => {
+        let settled = false;
+        const ok = (b) => { if (!settled) { settled = true; res(b); } };
+        const no = (e) => { if (!settled) { settled = true; rej(e); } };
+        try {
+          const ret = ctx.decodeAudioData(ab, ok, no);
+          if (ret && typeof ret.then === 'function') ret.then(ok, no);
+        } catch (e) { no(e); }
+      }))
+      .then((buf) => { this.buffers[name] = buf; delete this._bufLoading[name]; return buf; })
+      .catch(() => { delete this._bufLoading[name]; return null; });
+    this._bufLoading[name] = p;
+    return p;
+  },
+
+  stopBuffer(name) {
+    const s = this._bufSources[name];
+    if (s) {
+      try { s.onended = null; s.stop(); } catch (e) {}
+      delete this._bufSources[name];
+    }
+  },
+
+  isBufferPlaying(name) {
+    return !!this._bufSources[name];
+  },
+
+  /** Reprodueix un MP3 descodificat pel graf Web Audio (passa pel master → respecta el mut). */
+  playBuffer(name, url, opts = {}) {
+    if (!this.ensureCtx()) { if (opts.onfail) opts.onfail(); return false; }
+    this.started = true;
+    if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') this.ctx.resume();
+    const begin = (buf) => {
+      if (!buf) { if (opts.onfail) opts.onfail(); return; }
+      this.stopBuffer(name);
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = !!opts.loop;
+      const g = this.ctx.createGain();
+      g.gain.value = opts.gain != null ? opts.gain : 1;
+      src.connect(g);
+      g.connect(this.master);
+      src.onended = () => {
+        if (this._bufSources[name] === src) {
+          delete this._bufSources[name];
+          if (opts.onended) opts.onended();
+        }
+      };
+      this._bufSources[name] = src;
+      try { src.start(0); } catch (e) {}
+    };
+    if (this.buffers[name]) begin(this.buffers[name]);
+    else this.loadBuffer(name, url).then(begin);
+    return true;
+  },
+
   setTrack(name) {
     this._stopMusicTimer();
-    // Qualsevol pista sintetitzada atura la marxa nupcial real (MP3).
+    // Qualsevol pista sintetitzada atura els MP3 reals (marxa nupcial / himne).
     if (window.Assets && Assets.stopWeddingMarch) Assets.stopWeddingMarch();
+    if (window.Assets && Assets._stopSabadellPlayback) Assets._stopSabadellPlayback();
     this.track = TRACKS[name] || null;
     this.step = 0;
     if (this.track) {

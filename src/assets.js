@@ -72,6 +72,7 @@ const Assets = {
       clearTimeout(this._sabadellTimer);
       this._sabadellTimer = null;
     }
+    if (window.AudioEngine && AudioEngine.stopBuffer) AudioEngine.stopBuffer('sabadell');
     const a = this.sounds.sabadell;
     if (a) {
       a.onended = null;
@@ -98,6 +99,7 @@ const Assets = {
   /** Atura la marxa nupcial real (en sortir de l'escena). */
   stopWeddingMarch() {
     this._weddingPlaying = false;
+    if (window.AudioEngine && AudioEngine.stopBuffer) AudioEngine.stopBuffer('weddingMarch');
     const a = this.sounds.weddingMarch;
     if (a) {
       try { a.pause(); a.currentTime = 0; } catch (e) {}
@@ -106,6 +108,23 @@ const Assets = {
 
   /** Marxa nupcial real (MP3) en bucle: nivell del casament i caminada cap a l'arc. */
   playWeddingMarch() {
+    this._weddingPlaying = true;
+    // Via preferent: Web Audio (descodificat), fiable a Firefox i iOS.
+    if (window.AudioEngine && AudioEngine.playBuffer && AudioEngine.ensureCtx && AudioEngine.ensureCtx()) {
+      AudioEngine.started = true;
+      AudioEngine._stopMusicTimer();
+      AudioEngine.playBuffer('weddingMarch', this.WEDDING_MARCH_SRC, {
+        loop: true,
+        gain: 1.1,
+        onfail: () => this._playWeddingMarchEl(),
+      });
+      return true;
+    }
+    return this._playWeddingMarchEl();
+  },
+
+  /** Reserva: reproducció amb element HTML5 <audio>. */
+  _playWeddingMarchEl() {
     const a = this._getWeddingAudio();
     if (window.AudioEngine) {
       AudioEngine.ensureCtx();
@@ -174,8 +193,29 @@ const Assets = {
 
   /** Himne del CE Sabadell en recollir la pilota ⚽ (nivell 1). */
   playSabadellHimne() {
-    const a = this._getSabadellAudio();
     this._stopSabadellPlayback();
+    this._sabadellPlaying = true;
+    // Via preferent: Web Audio (descodificat), fiable a Firefox i iOS.
+    if (window.AudioEngine && AudioEngine.playBuffer && AudioEngine.ensureCtx && AudioEngine.ensureCtx()) {
+      AudioEngine.started = true;
+      if (AudioEngine.ctx.state === 'suspended') AudioEngine.ctx.resume();
+      AudioEngine._stopMusicTimer();
+      AudioEngine.playBuffer('sabadell', this.HIMNE_SABADELL_SRC, {
+        gain: 1.3,
+        onended: () => {
+          this._sabadellPlaying = false;
+          if (window.AudioEngine && AudioEngine.track) AudioEngine._restartMusicTimer();
+        },
+        onfail: () => this._playSabadellEl(),
+      });
+      return true;
+    }
+    return this._playSabadellEl();
+  },
+
+  /** Reserva: reproducció amb element HTML5 <audio>. */
+  _playSabadellEl() {
+    const a = this._getSabadellAudio();
     if (window.AudioEngine) {
       AudioEngine.ensureCtx();
       if (AudioEngine.ctx && AudioEngine.ctx.state === 'suspended') AudioEngine.ctx.resume();
