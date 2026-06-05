@@ -172,13 +172,25 @@ const AudioEngine = {
   _bufLoading: {},
   _bufSources: {},
 
+  /** Espera que el context estigui en marxa abans de reproduir (Firefox exigeix gest + resume). */
+  _whenRunning(fn) {
+    if (!this.ensureCtx()) return false;
+    this.started = true;
+    const go = () => { try { fn(); } catch (e) {} };
+    if (this.ctx.state === 'running') { go(); return true; }
+    const p = this.ctx.resume();
+    if (p && typeof p.then === 'function') { p.then(go).catch(go); return true; }
+    go();
+    return true;
+  },
+
   loadBuffer(name, url) {
     if (this.buffers[name]) return Promise.resolve(this.buffers[name]);
     if (this._bufLoading[name]) return this._bufLoading[name];
     if (!this.ensureCtx()) return Promise.resolve(null);
     const ctx = this.ctx;
     const p = fetch(url)
-      .then((r) => r.arrayBuffer())
+      .then((r) => { if (!r.ok) throw new Error('fetch ' + url); return r.arrayBuffer(); })
       .then((ab) => new Promise((res, rej) => {
         let settled = false;
         const ok = (b) => { if (!settled) { settled = true; res(b); } };
@@ -208,28 +220,29 @@ const AudioEngine = {
 
   /** Reprodueix un MP3 descodificat pel graf Web Audio (passa pel master → respecta el mut). */
   playBuffer(name, url, opts = {}) {
-    if (!this.ensureCtx()) { if (opts.onfail) opts.onfail(); return false; }
-    this.started = true;
-    if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') this.ctx.resume();
     const begin = (buf) => {
       if (!buf) { if (opts.onfail) opts.onfail(); return; }
-      this.stopBuffer(name);
-      const src = this.ctx.createBufferSource();
-      src.buffer = buf;
-      src.loop = !!opts.loop;
-      const g = this.ctx.createGain();
-      g.gain.value = opts.gain != null ? opts.gain : 1;
-      src.connect(g);
-      g.connect(this.master);
-      src.onended = () => {
-        if (this._bufSources[name] === src) {
-          delete this._bufSources[name];
-          if (opts.onended) opts.onended();
-        }
-      };
-      this._bufSources[name] = src;
-      try { src.start(0); } catch (e) {}
+      this._whenRunning(() => {
+        if (this.ctx.state !== 'running') { if (opts.onfail) opts.onfail(); return; }
+        this.stopBuffer(name);
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = !!opts.loop;
+        const g = this.ctx.createGain();
+        g.gain.value = opts.gain != null ? opts.gain : 1;
+        src.connect(g);
+        g.connect(this.master);
+        src.onended = () => {
+          if (this._bufSources[name] === src) {
+            delete this._bufSources[name];
+            if (opts.onended) opts.onended();
+          }
+        };
+        this._bufSources[name] = src;
+        try { src.start(0); } catch (e) { if (opts.onfail) opts.onfail(); }
+      });
     };
+    if (!this.ensureCtx()) { if (opts.onfail) opts.onfail(); return false; }
     if (this.buffers[name]) begin(this.buffers[name]);
     else this.loadBuffer(name, url).then(begin);
     return true;
