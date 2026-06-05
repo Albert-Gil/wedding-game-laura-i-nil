@@ -33,7 +33,7 @@ const Assets = {
         if (AudioEngine.track) AudioEngine._restartMusicTimer();
       },
     };
-    if (!AudioEngine.playFileNow('sabadell', opts)) AudioEngine.playFile('sabadell', opts);
+    if (!AudioEngine.playFileNow('sabadell', opts)) AudioEngine.requestFile('sabadell', opts);
     return true;
   },
 
@@ -41,7 +41,14 @@ const Assets = {
   playWeddingMarch() {
     if (!window.AudioEngine) return false;
     AudioEngine._stopMusicTimer();
-    if (!AudioEngine.playFileNow('weddingMarch')) AudioEngine.playFile('weddingMarch');
+    // #region agent log
+    fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'assets.js:playWeddingMarch',message:'playWeddingMarch called',data:{ctxState:AudioEngine.ctx?AudioEngine.ctx.state:'null',hasBuffer:AudioEngine.hasFileBuffer('weddingMarch'),isLoading:!!AudioEngine._loading['weddingMarch'],unlocked:AudioEngine._unlocked,started:AudioEngine.started},timestamp:Date.now(),hypothesisId:'H-F H-G'})}).catch(()=>{});
+    // #endregion
+    const nowResult = AudioEngine.playFileNow('weddingMarch');
+    // #region agent log
+    fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'assets.js:playWeddingMarch',message:'playFileNow result',data:{nowResult,isFilePlaying:AudioEngine.isFilePlaying('weddingMarch'),fileQueue:JSON.stringify(AudioEngine._fileQueue),currentFile:AudioEngine._currentFile},timestamp:Date.now(),hypothesisId:'H-F H-I'})}).catch(()=>{});
+    // #endregion
+    if (!nowResult) AudioEngine.requestFile('weddingMarch');
     return true;
   },
 

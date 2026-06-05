@@ -237,8 +237,14 @@ const AudioEngine = {
         const ab = await res.arrayBuffer();
         const buf = await this.ctx.decodeAudioData(ab.slice(0));
         this._buffers[name] = buf;
+        // #region agent log
+        fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_loadFileBuffer',message:'decoded OK',data:{name,duration:buf.duration},timestamp:Date.now(),hypothesisId:'H-F'})}).catch(()=>{});
+        // #endregion
         return buf;
       } catch (e) {
+        // #region agent log
+        fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_loadFileBuffer',message:'decode FAILED',data:{name,err:String(e)},timestamp:Date.now(),hypothesisId:'H-F'})}).catch(()=>{});
+        // #endregion
         return null;
       } finally {
         delete this._loading[name];
@@ -253,6 +259,9 @@ const AudioEngine = {
     if (!buf || !this.ctx) return false;
     this.stopFile(name);
     this._stopMusicTimer();
+    // #region agent log
+    if (name === 'weddingMarch') fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_startBuffer',message:'_startBuffer weddingMarch',data:{ctxState:this.ctx.state,bufDuration:buf.duration,masterGain:this.master?this.master.gain.value:null,muted:this.muted},timestamp:Date.now(),hypothesisId:'H-H H-I'})}).catch(()=>{});
+    // #endregion
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     src.loop = opts.loop != null ? !!opts.loop : !!cfg.loop;
@@ -271,8 +280,14 @@ const AudioEngine = {
     this._currentFile = name;
     try {
       src.start(0);
+      // #region agent log
+      if (name === 'weddingMarch') fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_startBuffer',message:'src.start OK weddingMarch',data:{ctxStateAfter:this.ctx.state,currentFile:this._currentFile},timestamp:Date.now(),hypothesisId:'H-H'})}).catch(()=>{});
+      // #endregion
       return true;
     } catch (e) {
+      // #region agent log
+      if (name === 'weddingMarch') fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_startBuffer',message:'src.start THREW weddingMarch',data:{err:String(e)},timestamp:Date.now(),hypothesisId:'H-H'})}).catch(()=>{});
+      // #endregion
       return false;
     }
   },
@@ -357,6 +372,9 @@ const AudioEngine = {
   setTrack(name) {
     this._stopMusicTimer();
     const next = TRACKS[name] || null;
+    // #region agent log
+    if (this._currentFile || this._fileQueue) fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:setTrack',message:'setTrack while file active',data:{name,currentFile:this._currentFile,fileQueue:JSON.stringify(this._fileQueue),nextExists:!!next},timestamp:Date.now(),hypothesisId:'H-J'})}).catch(()=>{});
+    // #endregion
     if (next) this.stopAllFiles();
     this.track = next;
     this.step = 0;
