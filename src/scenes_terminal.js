@@ -15,7 +15,7 @@ const T = {
 
 // ----- Constructors de passos (sucre sintàctic) -----
 const step = {
-  line: (text, opts = {}) => ({ type: 'line', text, color: opts.color || T.green, status: opts.status, statusColor: opts.statusColor, speed: opts.speed, indent: opts.indent || 0, portrait: opts.portrait }),
+  line: (text, opts = {}) => ({ type: 'line', text, color: opts.color || T.green, status: opts.status, statusColor: opts.statusColor, speed: opts.speed, indent: opts.indent || 0 }),
   wait: (d) => ({ type: 'wait', d }),
   bar: (label, d, opts = {}) => ({ type: 'bar', label, d, color: opts.color || T.green }),
   big: (text, opts = {}) => ({ type: 'big', text, color: opts.color || T.green, d: opts.d || 1.4, size: opts.size || 22 }),
@@ -27,8 +27,6 @@ const step = {
   /** Atura fins que l'usuari cliqui o premi una tecla. */
   pause: (text) => ({ type: 'prompt', text: text || '[ Clica o prem una tecla per continuar ]' }),
   go: (scene, opts, speed) => ({ type: 'go', scene, opts, speed }),
-  /** Mostra un retrat pixelat (nom d'imatge a Assets.images). */
-  portrait: (name) => ({ type: 'portrait', name }),
 };
 
 // =====================================================================
@@ -51,7 +49,6 @@ class TerminalRunner {
     this.defSpeed = cfg.speed || 38; // caràcters/segon (més lent = més llegible)
     this.scan = cfg.scan !== false;
     this.done = false;
-    this.portrait = null;
     this._advance();
   }
 
@@ -62,7 +59,6 @@ class TerminalRunner {
     this.cur = s;
     switch (s.type) {
       case 'line':
-        if (s.portrait) this.portrait = s.portrait;
         this.lines.push({ full: s.text, color: s.color, reveal: 0, status: s.status, statusColor: s.statusColor || T.green, done: false, indent: s.indent });
         this.state = 'typing';
         this._spd = s.speed || this.defSpeed;
@@ -77,8 +73,7 @@ class TerminalRunner {
         this.state = 'big';
         AudioEngine.sfx('confirm');
         break;
-      case 'clear': this.lines = []; this.portrait = null; this._advance(); break;
-      case 'portrait': this.portrait = s.name; this._advance(); break;
+      case 'clear': this.lines = []; this._advance(); break;
       case 'glitch': this.glitch = s.d; this.state = 'glitch'; this.timer = s.d; AudioEngine.sfx('glitch'); break;
       case 'fn': try { s.fn(); } catch (e) {} this._advance(); break;
       case 'prompt': this.waitingInput = true; this.promptText = s.text; this.state = 'prompt'; break;
@@ -308,39 +303,10 @@ class TerminalRunner {
       drawCenter(ctx, this.promptText, VH - fso(20), { size: promptSize, color: T.amber, os: true });
     }
 
-    this._drawPortrait(ctx);
-
     if (this.scan) drawCRT(ctx, this.glitch, false);
     ctx.imageSmoothingEnabled = smooth;
   }
 
-  /** Retrat pixelat (per sobre del vel de step.big) quan surt el patrocinador. */
-  _drawPortrait(ctx) {
-    if (!this.portrait || !window.Assets) return;
-    const name = this.portrait;
-    const img = Assets.images[name];
-    if (!img) return;
-    const ph = fso(92);
-    const pad = fso(14);
-    const cx = VW - pad - fso(18);
-    const cy = VH * 0.4;
-    const aspect = (img.naturalWidth && img.naturalHeight) ? img.naturalWidth / img.naturalHeight : 0.79;
-    const dh = ph;
-    const dw = Math.round(dh * aspect);
-    const bx = Math.round(cx - dw / 2 - fso(5));
-    const by = Math.round(cy - dh / 2 - fso(5));
-    const bw = dw + fso(10);
-    const bh = dh + fso(10);
-    ctx.fillStyle = 'rgba(2,28,18,0.92)';
-    ctx.fillRect(bx, by, bw, bh);
-    ctx.strokeStyle = T.cyan;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
-    drawText(ctx, 'PATROCINADOR', bx + fso(6), by + fso(8), { size: 7, color: T.dim, os: true });
-    if (!Assets.drawPixelPortrait(ctx, cx, cy, ph, name, 1)) {
-      drawText(ctx, '[foto]', cx, cy, { size: 10, color: T.dim, os: true, align: 'center' });
-    }
-  }
 }
 
 function drawCRT(ctx, glitch = 0, underText = false) {
@@ -500,13 +466,12 @@ function giftProgram() {
   return [
     step.pause('[ Clica per revelar el regal ]'),
     step.wait(0.3),
-    step.line('Buscant patrocinadors...', { color: T.dim }),
-    step.bar('Escanejant la xarxa', 1.0),
+    step.line('Desbloquejant contingut especial...', { color: T.dim }),
+    step.bar('Processant', 1.0),
     step.wait(0.3),
-    step.line('Patrocinador detectat.', { color: T.green }),
+    step.line('Regal detectat.', { color: T.green }),
     step.blank(),
-    step.line('Nom: Dr. Albert Gil Esmendia (no soc metge)', { color: T.cyan, portrait: 'albert' }),
-    step.line('Classificació: Wedding Investor', { color: T.amber }),
+    step.line('Classificació: Wedding Gift', { color: T.amber }),
     step.line('Tipus: Contribució estratègica', { color: T.white }),
     step.wait(0.6),
     step.blank(),
@@ -532,7 +497,6 @@ registerScene('gift', () => {
   let runner;
   return {
     enter() {
-      if (window.Assets) Assets.loadImage('albert', 'assets/albert.png');
       AudioEngine.setTrack('weddingEnd');
       runner = new TerminalRunner(giftProgram());
     },

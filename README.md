@@ -1,58 +1,58 @@
 # Laura ❤ Nil — LauraiNil_OS
 
-**Juga en línia:** https://albert-gil.github.io/wedding-game-laura-i-nil/
+**Play online:** https://albert-gil.github.io/wedding-game-laura-i-nil/
 
-Un regal de casament jugable. Comença com una simulació seriosa (**LauraiNil_OS**) i,
-de cop, es transforma en una aventura pixel-art retro que recorre la història de la
-Laura i el Nil: l'escola de Sant Nicolau, els anys d'aventures, la vida adulta, el caos
-de planificar el casament, el boss final i... el retrobament al **Mas d'Osor**.
+A playable wedding gift. It starts as a serious simulation (**LauraiNil_OS**) and,
+suddenly, turns into a retro pixel-art adventure that follows Laura and Nil's story:
+Sant Nicolau school, years of adventures, adult life, the chaos of wedding planning,
+the final boss, and... the reunion at **Mas d'Osor**.
 
-> El casament no és la meta. És el començament.
+> The wedding is not the goal. It is the beginning.
 
-## Com jugar-hi
+## How to play
 
-Obre l'enllaç de dalt (o **`index.html`**) amb qualsevol navegador modern.
-Al mòbil, **toca la pantalla un cop** per activar el so.
+Open the link above (or **`index.html`**) in any modern browser.
+On mobile, **tap the screen once** to enable sound.
 
 ### Controls
 
-- **Ordinador:** fletxes o `WASD` per moure's, `Espai` / `Z` / `Enter` per acció,
-  `X` / `Esc` per tornar / assoliments.
-- **Mòbil / tauleta:** creueta tàctil + botons **A/B** a la pantalla. A les escenes
-  de text, només cal **tocar la pantalla** per avançar.
-- Botó **♪** (a dalt a la dreta): silenciar/activar el so.
-- Botó **⛶**: pantalla completa.
+- **Desktop:** arrow keys or `WASD` to move, `Space` / `Z` / `Enter` for action,
+  `X` / `Esc` to go back / achievements.
+- **Mobile / tablet:** on-screen D-pad + **A/B** buttons. In text scenes,
+  simply **tap the screen** to continue.
+- **♪** button (top right): mute/unmute sound.
+- **⛶** button: fullscreen.
 
-## Característiques
+## Features
 
-- Dues fases: terminal **LauraiNil_OS** → aventura jugable.
-- 4 nivells + **boss final** (Monstre de la Planificació del Casament).
-- Moment **Jugador 2 connectat**: la Laura es torna jugable.
-- Música chiptune i efectes de so sintetitzats (sense fitxers externs).
-- **18 assoliments**, alguns ocults (Easter eggs).
-- Tot en **català**, pensat per a una parella de **Sabadell**.
+- Two phases: **LauraiNil_OS** terminal → playable adventure.
+- 4 levels + **final boss** (Wedding Planning Monster).
+- **Player 2 connected** moment: Laura becomes playable.
+- Chiptune music and synthesized sound effects.
+- **18 achievements**, some hidden (Easter eggs).
+- Entirely in **Catalan**, made for a couple from **Sabadell**.
 
-## Estructura del codi
+## Code structure
 
-Tot està en fitxers separats per facilitar-ne l'edició (es pot unir en un sol fitxer
-més endavant si es vol):
+Everything is split into separate files to make editing easier (it can be merged into a
+single file later if desired):
 
 ```
-index.html          · pàgina + controls tàctils
-styles.css          · estils i layout responsiu
-src/core.js         · motor, bucle, gestor d'escenes, utilitats
-src/audio.js        · motor d'àudio chiptune + efectes
-src/input.js        · teclat + controls tàctils
-src/sprites.js      · pixel-art procedural (Laura, Nil, decorats)
-src/achievements.js · assoliments i notificacions
-src/dialogue.js     · quadre de diàleg amb màquina d'escriure
-src/scenes_terminal.js  · LauraiNil_OS (boot, regal, missatge final)
-src/scenes_levels.js    · motor top-down + nivells 1..4
-src/scenes_boss.js      · batalla final
-src/scenes_emotional.js · títol, retrobament, caminada final, final
-src/main.js         · arrencada
+index.html          · page + touch controls
+styles.css          · styles and responsive layout
+src/core.js         · engine, loop, scene manager, utilities
+src/audio.js        · chiptune audio engine + effects
+src/input.js        · keyboard + touch controls
+src/sprites.js      · procedural pixel art (Laura, Nil, decor)
+src/achievements.js · achievements and notifications
+src/dialogue.js     · dialogue box with typewriter effect
+src/scenes_terminal.js  · LauraiNil_OS (boot, gift, final message)
+src/scenes_levels.js    · top-down engine + levels 1..4
+src/scenes_boss.js      · final battle
+src/scenes_emotional.js · title, reunion, final walk, ending
+src/main.js         · startup
 ```
 
-Truc: `Shift + Alt + R` reinicia els assoliments (per estrenar-lo de nou).
+Tip: `Shift + Alt + R` resets achievements (to experience it fresh again).
 
-Fet amb amor per al casament de la Laura i el Nil · Mas d'Osor · 13.06.2026
+Made with love for Laura and Nil's wedding · Mas d'Osor · 13.06.2026

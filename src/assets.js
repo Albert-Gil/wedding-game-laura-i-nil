@@ -5,7 +5,6 @@
 const Assets = {
   images: {},
   sounds: {},
-  _pixelCache: {},
   _sabadellPlaying: false,
   _sabadellTimer: null,
   _weddingPlaying: false,
@@ -185,7 +184,6 @@ const Assets = {
   init() {
     return Promise.all([
       this.loadImage('logo', 'assets/logo.png'),
-      this.loadImage('albert', 'assets/albert.png'),
       this.loadSound('sabadell', this.HIMNE_SABADELL_SRC),
       this.loadSound('weddingMarch', this.WEDDING_MARCH_SRC),
     ]);
@@ -264,41 +262,6 @@ const Assets = {
       a.addEventListener('canplay', start, { once: true });
       a.load();
     }
-    return true;
-  },
-
-  /** Retrat en estil pixel art (escala baixa + nearest-neighbor). */
-  drawPixelPortrait(ctx, cx, cy, height, name = 'albert', alpha = 1) {
-    const img = this.images[name];
-    if (!img) return false;
-    if (!img.complete || !img.naturalWidth) {
-      if (!img.src) img.src = `assets/${name}.png`;
-      return false;
-    }
-    const key = `${name}:${height}`;
-    let cache = this._pixelCache[key];
-    if (!cache) {
-      const targetH = 40;
-      const targetW = Math.max(1, Math.round(targetH * (img.width / img.height)));
-      const c = document.createElement('canvas');
-      c.width = targetW;
-      c.height = targetH;
-      const cctx = c.getContext('2d');
-      cctx.imageSmoothingEnabled = false;
-      cctx.drawImage(img, 0, 0, targetW, targetH);
-      cache = { canvas: c, w: targetW, h: targetH };
-      this._pixelCache[key] = cache;
-    }
-    const scale = height / cache.h;
-    const dw = Math.round(cache.w * scale);
-    const dh = Math.round(cache.h * scale);
-    const x = Math.round(cx - dw / 2);
-    const y = Math.round(cy - dh / 2);
-    ctx.save();
-    ctx.imageSmoothingEnabled = false;
-    ctx.globalAlpha = alpha;
-    ctx.drawImage(cache.canvas, x, y, dw, dh);
-    ctx.restore();
     return true;
   },
 
