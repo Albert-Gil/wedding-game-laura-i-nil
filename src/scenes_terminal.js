@@ -327,7 +327,7 @@ function bootProgram() {
     step.pause('[ Clica per arrencar LauraiNil_OS ]'),
     step.big('LauraiNil_OS', { size: 30, d: 1.8, color: T.green, click: true }),
     step.line('LauraiNil_OS v1.0', { color: T.cyan }),
-    step.line('(c) 1994 Institut de l\'Amor Vertader', { color: T.dim }),
+    step.line('(c) 1994 Unihuevo Creations', { color: T.dim }),
     step.blank(),
     step.pause('[ Prem per inicialitzar el sistema ]'),
     step.line('Inicialitzant sistema...'),

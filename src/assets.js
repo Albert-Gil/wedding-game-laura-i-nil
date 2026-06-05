@@ -1,9 +1,11 @@
 /* =====================================================================
-   ASSETS — càrrega d'imatges (logo de casament nl · 13.06.2026)
+   ASSETS — imatges + àudio (logo, himne Sabadell…)
    ===================================================================== */
 
 const Assets = {
   images: {},
+  sounds: {},
+  _sabadellPlaying: false,
 
   loadImage(name, src) {
     return new Promise((resolve) => {
@@ -14,8 +16,46 @@ const Assets = {
     });
   },
 
+  loadSound(name, src) {
+    return new Promise((resolve) => {
+      const a = new Audio();
+      a.preload = 'auto';
+      const done = () => { this.sounds[name] = a; resolve(a); };
+      a.addEventListener('canplaythrough', done, { once: true });
+      a.addEventListener('error', () => resolve(null), { once: true });
+      a.src = src;
+      a.load();
+    });
+  },
+
   init() {
-    return this.loadImage('logo', 'assets/logo.png');
+    return Promise.all([
+      this.loadImage('logo', 'assets/logo.png'),
+      this.loadSound('sabadell', 'assets/himne-sabadell.mp3'),
+    ]);
+  },
+
+  /** Himne del CE Sabadell en recollir la pilota ⚽ (nivell 1). */
+  playSabadellHimne() {
+    const a = this.sounds.sabadell;
+    if (!a) return false;
+    if (window.AudioEngine) {
+      AudioEngine.resume();
+      AudioEngine._stopMusicTimer();
+    }
+    this._sabadellPlaying = true;
+    a.volume = (window.AudioEngine && AudioEngine.muted) ? 0 : 0.85;
+    a.currentTime = 0;
+    const p = a.play();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+    const resume = () => {
+      if (!this._sabadellPlaying) return;
+      this._sabadellPlaying = false;
+      if (window.AudioEngine && AudioEngine.track) AudioEngine._restartMusicTimer();
+    };
+    a.onended = resume;
+    setTimeout(resume, (a.duration && isFinite(a.duration) ? a.duration * 1000 : 12000) + 200);
+    return true;
   },
 
   /** Dibuixa el logo centrat; mida = alçada en px de joc. */

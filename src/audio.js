@@ -368,6 +368,6 @@ const TRACKS = {
     bass: ['C3', _, _, _, 'A2', _, _, _, 'F2', _, _, _, 'G2', _, _, _],
     drum: ['h', _, _, _, _, _, _, _, 'h', _, _, _, _, _, _, _],
   },
-  /* Wagner — Lohengrin «Treulich geführt» (see wagner_bridal_chorus.js) */
-  ...WagnerBridalChorus.buildTracks(),
+  /* Mendelssohn Op. 61 — des de assets/mendelssohn-wedding-march.mid */
+  ...MendelssohnWeddingMarch.buildTracks(),
 };

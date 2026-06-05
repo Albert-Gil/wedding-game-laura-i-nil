@@ -105,7 +105,7 @@ function createLevel(cfg) {
       if (it.float) floater(it.float, it.x, it.y - 14, it.fc || '#ffd166');
       if (cfg.onItem) cfg.onItem(it, { floater, collected, goal });
       if (it.ach) Achievements.unlock(it.ach);
-      if (it.anthem === 'sabadell' && window.SabadellHimno) SabadellHimno.play();
+      if (it.anthem === 'sabadell' && window.Assets) Assets.playSabadellHimne();
       checkGoal();
     }
 
@@ -619,7 +619,7 @@ registerScene('level3', createLevel({
 // =====================================================================
 registerScene('level4', createLevel({
   hero: 'nil',
-  track: 'wedding',   // Wagner — Treulich geführt
+  track: 'wedding',   // Mendelssohn — marxa nupcial
   banner: 'NIVELL 4', subtitle: 'EL CASAMENT', introSub: 'PLANIFICANT EL CASAMENT',
   hudColor: '#ff8aa6', tokenEmoji: '✅',
   world: { w: 600, h: 420 },
