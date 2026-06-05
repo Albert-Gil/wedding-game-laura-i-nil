@@ -21,7 +21,7 @@ window.addEventListener('load', () => {
   // Pista "toca per continuar" només en tàctil i durant escenes passives.
   const hint = document.getElementById('tapHint');
   setInterval(() => {
-    const passive = ['boot', 'returnos', 'gift', 'finalmsg', 'ending'];
+    const passive = ['boot', 'returnos', 'gift', 'finalmsg', 'ending', 'credits'];
     if (Input.hasTouch && passive.includes(SM.currentName)) hint.classList.remove('hidden');
     else hint.classList.add('hidden');
   }, 400);

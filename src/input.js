@@ -98,7 +98,7 @@ const Input = {
   },
 
   _firstGesture() {
-    AudioEngine.resume();
+    AudioEngine.unlock();
   },
 
   _fire(action) {

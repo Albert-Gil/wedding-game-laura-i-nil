@@ -355,7 +355,7 @@ registerScene('ending', () => {
   function goToReturnOS() {
     if (leaving) return;
     leaving = true;
-    SM.go('returnos', {}, 2.4);
+    SM.go('credits', {}, 2.4);
   }
 
   function advanceSlide() {
@@ -407,6 +407,70 @@ registerScene('ending', () => {
         if (idx >= seq.length - 1 && t > 0.5) goToReturnOS();
         else if (t > 0.3) advanceSlide();
       }
+    },
+  };
+});
+
+// =====================================================================
+//  CRÈDITS FINALS — foto lo-fi + firma
+// =====================================================================
+registerScene('credits', () => {
+  let t = 0;
+  let lofi = null;
+
+  function buildLofiImage() {
+    const img = Assets.images.creditsPhoto;
+    if (!img || !img.complete || !img.naturalWidth) return null;
+    const out = document.createElement('canvas');
+    out.width = 96;
+    out.height = 96;
+    const c = out.getContext('2d');
+    c.imageSmoothingEnabled = false;
+    c.drawImage(img, 0, 0, out.width, out.height);
+    const id = c.getImageData(0, 0, out.width, out.height);
+    const d = id.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const g = Math.round((d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114));
+      const tone = Math.round(g * 0.88 + 12);
+      d[i] = tone;
+      d[i + 1] = Math.round(tone * 0.92);
+      d[i + 2] = Math.round(tone * 0.8);
+    }
+    c.putImageData(id, 0, 0);
+    return out;
+  }
+
+  return {
+    enter() {
+      t = 0;
+      AudioEngine.setTrack('weddingEnd');
+      lofi = buildLofiImage();
+    },
+    update(dt) {
+      t += dt;
+    },
+    render(ctx) {
+      ctx.fillStyle = '#08080a';
+      ctx.fillRect(0, 0, VW, VH);
+      const a = U.clamp(t / 0.8, 0, 1);
+      const w = fs(180), h = fs(180), x = Math.round(VW / 2 - w / 2), y = Math.round(VH / 2 - h / 2 - fs(18));
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#111';
+      ctx.fillRect(x - fs(4), y - fs(4), w + fs(8), h + fs(8));
+      ctx.imageSmoothingEnabled = false;
+      if (lofi) ctx.drawImage(lofi, x, y, w, h);
+      else Assets.drawCreditsPhoto(ctx, x, y, w, h, a);
+      ctx.globalAlpha = a * 0.2;
+      for (let yy = y; yy < y + h; yy += 3) ctx.fillRect(x, yy, w, 1);
+      ctx.restore();
+      drawCenter(ctx, '(c) Unihevo Creations, 2026', y + h + fs(22), { size: 9, color: '#d9d2c3' });
+      if (Math.floor(t * 1.8) % 2 === 0) {
+        drawCenter(ctx, Input.hasTouch ? 'Toca per sortir' : 'Prem qualsevol tecla', VH - fs(14), { size: 7, color: 'rgba(255,255,255,0.45)' });
+      }
+    },
+    onInput(a) {
+      if (a === 'any' || a === 'tap' || a === 'a') SM.go('returnos', {}, 2.0);
     },
   };
 });

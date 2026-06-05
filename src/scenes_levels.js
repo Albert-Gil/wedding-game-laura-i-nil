@@ -408,7 +408,22 @@ function drawDecor(ctx, d, camX, camY) {
     case 'pine': drawPine(ctx, x, y, d.scale || 1); break;
     case 'building': drawBuilding(ctx, x - (d.w || 60) / 2, y, d.w || 60, d.h || 50, d.wall || '#d9c39a', d.roof || '#a85b3c'); break;
     case 'rock': ctx.fillStyle = d.c || '#8a8f99'; ctx.beginPath(); ctx.ellipse(x, y - 4, 8 * (d.scale || 1), 6 * (d.scale || 1), 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.beginPath(); ctx.ellipse(x - 2, y - 6, 3 * (d.scale || 1), 2, 0, 0, Math.PI * 2); ctx.fill(); break;
-    case 'sign': ctx.fillStyle = '#6b4a2a'; ctx.fillRect(x - 1, y - 12, 2, 12); ctx.fillStyle = d.c || '#3f7fd6'; ctx.fillRect(x - 14, y - 22, 28, 11); drawText(ctx, d.text || '', x, y - 16, { size: 6, color: '#fff', align: 'center' }); break;
+    case 'sign': {
+      const txt = d.text || '';
+      const pad = fs(4);
+      const minW = fs(28);
+      const maxW = fs(110);
+      const fontSize = fitFontSize(ctx, txt, maxW - pad * 2, 7);
+      const txtW = measureTextWidth(ctx, txt, { size: fontSize });
+      const boardW = U.clamp(Math.ceil(txtW + pad * 2), minW, maxW);
+      const boardH = fs(11);
+      ctx.fillStyle = '#6b4a2a';
+      ctx.fillRect(Math.round(x - 1), Math.round(y - fs(12)), 2, fs(12));
+      ctx.fillStyle = d.c || '#3f7fd6';
+      ctx.fillRect(Math.round(x - boardW / 2), Math.round(y - fs(22)), boardW, boardH);
+      drawText(ctx, txt, x, y - fs(16), { size: fontSize, color: '#fff', align: 'center' });
+      break;
+    }
     case 'flower': ctx.fillStyle = d.c || '#ff7a98'; ctx.fillRect(x - 1, y - 3, 2, 3); ctx.fillStyle = '#3aae62'; ctx.fillRect(x, y, 1, 2); break;
     case 'tent': ctx.fillStyle = d.c || '#e0607f'; ctx.beginPath(); ctx.moveTo(x - 12, y); ctx.lineTo(x + 12, y); ctx.lineTo(x, y - 14); ctx.closePath(); ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 5, y - 6); ctx.lineTo(x, y - 14); ctx.closePath(); ctx.fill(); break;
     case 'desk': ctx.fillStyle = '#7a5a3a'; ctx.fillRect(x - 12, y - 8, 24, 8); ctx.fillStyle = '#9fb4c9'; ctx.fillRect(x - 8, y - 14, 12, 7); break;

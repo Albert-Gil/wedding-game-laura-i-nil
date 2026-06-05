@@ -7,7 +7,7 @@
 /** Fitxers MP3 reals del joc. */
 const FILE_TRACKS = {
   sabadell: { url: 'assets/himne-sabadell.mp3', gain: 2.2 },
-  weddingMarch: { url: 'assets/mendelssohn-wedding-march.mp3?v=20260605b', gain: 2.0, loop: true },
+  weddingMarch: { url: 'assets/mendelssohn-wedding-march.mp3?v=20260605c', gain: 2.0, loop: true },
 };
 
 const AudioEngine = {

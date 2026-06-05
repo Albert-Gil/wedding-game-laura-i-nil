@@ -21,7 +21,10 @@ const Assets = {
   },
 
   init() {
-    return this.loadImage('logo', 'assets/logo.png');
+    return Promise.all([
+      this.loadImage('logo', 'assets/logo.png'),
+      this.loadImage('creditsPhoto', 'assets/credits-photo.png'),
+    ]);
   },
 
   /** Himne del CE Sabadell en recollir la pilota ⚽ (nivell 1). */
@@ -53,6 +56,16 @@ const Assets = {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cy - height / 2), Math.round(w), Math.round(height));
+    ctx.restore();
+    return true;
+  },
+
+  drawCreditsPhoto(ctx, x, y, w, h, alpha = 1) {
+    const img = this.images.creditsPhoto;
+    if (!img || !img.complete || !img.naturalWidth) return false;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(img, Math.round(x), Math.round(y), Math.round(w), Math.round(h));
     ctx.restore();
     return true;
   },
