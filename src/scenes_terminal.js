@@ -561,7 +561,7 @@ registerScene('finalmsg', () => {
     },
     onInput(a) {
       if ((a === 'any' || a === 'tap' || a === 'a') && idx === seq.length - 1 && t > 2.5) {
-        SM.go('boot', {}, 1.5);
+        SM.go('credits', {}, 1.5);
       }
     },
   };

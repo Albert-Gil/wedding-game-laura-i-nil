@@ -52,13 +52,13 @@ registerScene('title', () => {
       ctx.fillStyle = '#23304a'; ctx.fillRect(0, VH - 40, VW, 40);
 
       drawCenter(ctx, 'SIMULACIÓ ACTIVADA', fs(28), { size: 9, color: '#7fe9ff' });
-      const logoY = fs(58);
+      const logoY = fs(64);
       const logoPulse = 0.9 + Math.sin(t * 2) * 0.1;
       if (!Assets.drawLogo(ctx, VW / 2, logoY, fs(56), logoPulse)) {
         drawCenter(ctx, 'LAURA      NIL', logoY + fs(8), { size: 22, color: '#fff', shadow: '#ff5a7a', sx: 2, sy: 2 });
         drawHeart(ctx, VW / 2, logoY + fs(28), 6, '#ff5a7a');
       }
-      drawCenter(ctx, 'una aventura de casament', fs(78), { size: 8, color: '#ffd166' });
+      drawCenter(ctx, 'una aventura de casament', fs(88), { size: 8, color: '#ffd166' });
 
       const bob = Math.sin(t * 3) * fs(2);
       drawHero(ctx, HEROES.nil, VW / 2 - fs(40), VH - fs(50) + bob, 'right', t, false);
@@ -129,10 +129,24 @@ registerScene('reunion', () => {
       ctx.fillStyle = '#6a8f5a'; ctx.fillRect(0, VH - 30, VW, 30);
       // arc de casament al centre-dreta
       drawArch(ctx, VW / 2 + 70, VH - 30);
-      // rètol de la data
-      ctx.fillStyle = '#5a3f2a'; ctx.fillRect(VW / 2 - 30, VH - 30, 2, 8);
-      ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fillRect(VW / 2 - 46, VH - 48, 34, 14);
-      drawText(ctx, '13.06.2026', VW / 2 - 29, VH - 41, { size: 7, color: '#c0143c', align: 'center' });
+      // rètol de la data (auto-sized)
+      {
+        const txt = '13.06.2026';
+        const signX = VW / 2 - 28;
+        const signBaseY = VH - 30;
+        const pad = fs(3);
+        const sz = fitFontSize(ctx, txt, fs(52), 8);
+        const tw = measureTextWidth(ctx, txt, { size: sz });
+        const bw = Math.ceil(tw + pad * 2);
+        const bh = Math.ceil(fs(sz) + fs(4));
+        const textY = signBaseY - fs(14);
+        const boardY = Math.round(textY - bh / 2);
+        ctx.fillStyle = '#5a3f2a';
+        ctx.fillRect(Math.round(signX - 1), boardY - fs(8), 2, fs(8) + bh / 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.fillRect(Math.round(signX - bw / 2), boardY, bw, bh);
+        drawText(ctx, txt, signX, textY, { size: sz, color: '#c0143c', align: 'center' });
+      }
 
       // herois
       drawHero(ctx, HEROES.nil, nilX, VH - 30, 'right', t, stage === 'walk');
@@ -177,13 +191,13 @@ registerScene('finalwalk', () => {
   const padX = pw.padX;
   const world = { w: pw.w };
   // Peu a peu tots dos cauen cap a la zona "terra" (prat) de la part inferior.
-  const nil = { x: 60 + padX, y: VH - 130 };
-  const laura = { x: 44 + padX, y: VH - 124 };
+  const nil = { x: 60 + padX, y: VH - 70 };
+  const laura = { x: 44 + padX, y: VH - 64 };
   let facing = 'right';
   let cam = 0;
   const parts = new Particles();
   const archX = padX + 760 - 70;
-  const archY = VH - 80;
+  const archY = VH - 55;
   let reached = false, reachT = 0;
   const banners = [
     { x: 180 + padX, text: 'Sant Nicolau Survivors', shown: false },
@@ -274,19 +288,18 @@ registerScene('finalwalk', () => {
     },
     render(ctx) {
       sunsetSky(ctx, cam, t);
-      // prat
-      ctx.fillStyle = '#6a8f5a'; ctx.fillRect(0, VH - 60, VW, 60);
-      // flors pel camí
-      ctx.fillStyle = '#fff';
+      // prat (cobreix des de archY fins a baix)
+      ctx.fillStyle = '#6a8f5a'; ctx.fillRect(0, archY - 5, VW, VH - archY + 5);
+      // flors pel camí (a l'alçada del prat)
       for (let i = 0; i < world.w; i += 30) {
         const fx = i - cam; if (fx < -5 || fx > VW + 5) continue;
         ctx.fillStyle = ['#ff9ec2', '#ffd166', '#fff', '#c39bff'][i / 30 % 4 | 0];
-        ctx.fillRect(fx, 175 + (i % 3) * 4, 2, 2);
+        ctx.fillRect(fx, archY - 10 + (i % 3) * 3, 2, 2);
       }
-      // arbres
-      drawPine(ctx, 120 - cam, archY - 100, 1);
-      drawPine(ctx, 420 - cam, archY - 120, 1.2);
-      drawPine(ctx, 300 - cam, archY - 70, 1);
+      // arbres (peu al prat)
+      drawPine(ctx, 120 - cam, archY, 1);
+      drawPine(ctx, 420 - cam, archY, 1.2);
+      drawPine(ctx, 300 - cam, archY, 1);
       // arc al final
       drawArch(ctx, archX - cam, archY);
       // catifa cap a l'arc
@@ -354,7 +367,7 @@ registerScene('ending', () => {
   const seq = [
     { lines: ['LAURA ❤ NIL'], size: 24, color: '#fff', hold: 2.6, sfx: 'heart' },
     { lines: ['MISSIÓ COMPLETADA'], size: 16, color: '#ffd166', hold: 2.4, sfx: 'win' },
-    { lines: ['MARRIAGE MODE', 'UNLOCKED'], size: 16, color: '#ff8aa6', hold: 3.0, sfx: 'powerup' },
+    { lines: ['MARRIAGE MODE', 'DESBLOQUEJAT'], size: 16, color: '#ff8aa6', hold: 3.0, sfx: 'powerup' },
     { lines: ['Jugador 1: Nil', 'Jugador 2: Laura', 'Vides restants: ∞'], size: 11, color: '#fff', hold: 3.2, mono: true },
     { lines: ['"La veritable aventura', 'comença ara."'], size: 13, color: '#ffd166', hold: 3.4 },
   ];
@@ -363,7 +376,7 @@ registerScene('ending', () => {
   function goToReturnOS() {
     if (leaving) return;
     leaving = true;
-    SM.go('credits', {}, 2.4);
+    SM.go('returnos', {}, 2.4);
   }
 
   function advanceSlide() {
@@ -480,7 +493,7 @@ registerScene('credits', () => {
       }
     },
     onInput(a) {
-      if (a === 'any' || a === 'tap' || a === 'a') SM.go('returnos', {}, 2.0);
+      if (a === 'any' || a === 'tap' || a === 'a') SM.go('boot', {}, 2.0);
     },
   };
 });
