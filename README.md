@@ -1,4 +1,4 @@
-# Laura ❤ Nil — LauraiNil_OS
+# Laura i Nil — LauraiNil_OS
 
 **Play online:** https://albert-gil.github.io/wedding-game-laura-i-nil/
 
