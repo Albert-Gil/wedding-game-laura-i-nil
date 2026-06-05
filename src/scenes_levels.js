@@ -159,7 +159,12 @@ function createLevel(cfg) {
     return {
       enter() {
         AudioEngine.resume();
-        AudioEngine.setTrack(cfg.track);
+        if (cfg.musicFile === 'wedding' && window.Assets) {
+          AudioEngine.setTrack(null);
+          Assets.playWeddingMarch();
+        } else {
+          AudioEngine.setTrack(cfg.track);
+        }
         resetLevel(false);
         intro = 2.6;
       },
@@ -475,7 +480,9 @@ registerScene('level1', createLevel({
     { x: 480, y: 380, emoji: '😴', behavior: 'patrolY', range: 60, freq: 1.2, float: 'Dilluns...' },
     { x: 350, y: 320, emoji: '⏰', behavior: 'patrolX', range: 70, freq: 1.1, float: 'Examens!' },
   ],
-  onItem: (it) => { if (it.count !== false) { /* progrés d'amistat */ } },
+  onItem: (it, ctx) => {
+    if (ctx.collected >= ctx.goal) Achievements.unlock('antic_alumne');
+  },
   endNPC: {
     hero: 'laura', x: 330, y: 200, facing: 'down',
     dialogue: [
@@ -620,6 +627,7 @@ registerScene('level3', createLevel({
 registerScene('level4', createLevel({
   hero: 'nil',
   track: 'wedding',   // Mendelssohn — marxa nupcial
+  musicFile: 'wedding', // reprodueix l'MP3 real de la marxa nupcial
   banner: 'NIVELL 4', subtitle: 'EL CASAMENT', introSub: 'PLANIFICANT EL CASAMENT',
   hudColor: '#ff8aa6', tokenEmoji: '✅',
   world: { w: 600, h: 420 },

@@ -265,17 +265,19 @@ class TerminalRunner {
       const p = U.clamp(this.bar.t / this.bar.d, 0, 1);
       const pctStr = Math.floor(p * 100) + '%';
       const pctW = measureTextWidth(ctx, pctStr, { size: 8, os: true });
-      const w = Math.min(fso(220), VW - padX * 2 - pctW - fso(8));
+      const maxW = Math.min(fso(220), VW - padX * 2 - pctW - fso(8));
       const x = padX;
       const by = y + fso(2);
       drawText(ctx, this.bar.label, x, by, { size: 9, color: this.bar.color, os: true });
       const bbY = by + fso(12);
       const pad = fso(3);
-      const innerW = w - pad * 2;
       const barFont = fso(8);
       ctx.font = `${barFont}px "Courier New", ui-monospace, monospace`;
       const charW = ctx.measureText('█').width || barFont * 0.55;
-      const blocks = Math.max(8, Math.floor(innerW / charW));
+      // Calcula els blocs primer i ajusta el marc perquè s'ompli del tot al 100%.
+      const blocks = Math.max(8, Math.floor((maxW - pad * 2) / charW));
+      const innerW = blocks * charW;
+      const w = innerW + pad * 2;
       const filled = p >= 1 ? blocks : Math.min(blocks, Math.round(p * blocks));
       let s = '';
       for (let k = 0; k < blocks; k++) s += k < filled ? '█' : '·';

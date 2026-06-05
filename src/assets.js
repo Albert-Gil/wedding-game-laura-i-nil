@@ -8,7 +8,9 @@ const Assets = {
   _pixelCache: {},
   _sabadellPlaying: false,
   _sabadellTimer: null,
+  _weddingPlaying: false,
   HIMNE_SABADELL_SRC: 'assets/himne-sabadell.mp3', // himne-versio-moderna-ce-sabadell-tall.mp3
+  WEDDING_MARCH_SRC: 'assets/mendelssohn-wedding-march.mp3', // marxa nupcial real (MP3)
 
   loadImage(name, src) {
     return new Promise((resolve) => {
@@ -78,9 +80,69 @@ const Assets = {
     this._sabadellPlaying = false;
   },
 
-  /** Desbloqueja reproducció HTML5 (iOS/Safari) després del primer gest. */
-  primeAudio() {
-    const a = this._getSabadellAudio();
+  _getWeddingAudio() {
+    let a = this.sounds.weddingMarch;
+    if (!a) {
+      a = new Audio(this.WEDDING_MARCH_SRC);
+      a.preload = 'auto';
+      this.sounds.weddingMarch = a;
+    }
+    if (!a.src || !a.src.endsWith('mendelssohn-wedding-march.mp3')) {
+      a.src = this.WEDDING_MARCH_SRC;
+      a.load();
+    }
+    a.loop = true;
+    return a;
+  },
+
+  /** Atura la marxa nupcial real (en sortir de l'escena). */
+  stopWeddingMarch() {
+    this._weddingPlaying = false;
+    const a = this.sounds.weddingMarch;
+    if (a) {
+      try { a.pause(); a.currentTime = 0; } catch (e) {}
+    }
+  },
+
+  /** Marxa nupcial real (MP3) en bucle: nivell del casament i caminada cap a l'arc. */
+  playWeddingMarch() {
+    const a = this._getWeddingAudio();
+    if (window.AudioEngine) {
+      AudioEngine.ensureCtx();
+      if (AudioEngine.ctx && AudioEngine.ctx.state === 'suspended') AudioEngine.ctx.resume();
+      AudioEngine.started = true;
+      AudioEngine._stopMusicTimer();
+    }
+    this._weddingPlaying = true;
+
+    const start = () => {
+      if (!this._weddingPlaying) return;
+      a.volume = (window.AudioEngine && AudioEngine.muted) ? 0 : 0.85;
+      const p = a.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {
+          const retry = () => {
+            if (!this._weddingPlaying) return;
+            a.volume = (window.AudioEngine && AudioEngine.muted) ? 0 : 0.85;
+            a.play().catch(() => {});
+          };
+          a.addEventListener('canplay', retry, { once: true });
+          a.load();
+        });
+      }
+    };
+
+    try { a.pause(); } catch (e) {}
+    a.currentTime = 0;
+    if (a.readyState >= 2) start();
+    else {
+      a.addEventListener('canplay', start, { once: true });
+      a.load();
+    }
+    return true;
+  },
+
+  _primeEl(a) {
     const vol = a.volume;
     a.volume = 0.001;
     const p = a.play();
@@ -95,11 +157,18 @@ const Assets = {
     }).catch(() => { a.volume = vol; });
   },
 
+  /** Desbloqueja reproducció HTML5 (iOS/Safari) després del primer gest. */
+  primeAudio() {
+    if (!this._sabadellPlaying) this._primeEl(this._getSabadellAudio());
+    if (!this._weddingPlaying) this._primeEl(this._getWeddingAudio());
+  },
+
   init() {
     return Promise.all([
       this.loadImage('logo', 'assets/logo.png'),
       this.loadImage('albert', 'assets/albert.png'),
       this.loadSound('sabadell', this.HIMNE_SABADELL_SRC),
+      this.loadSound('weddingMarch', this.WEDDING_MARCH_SRC),
     ]);
   },
 

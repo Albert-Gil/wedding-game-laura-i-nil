@@ -93,6 +93,9 @@ const AudioEngine = {
     if (window.Assets && Assets.sounds.sabadell) {
       Assets.sounds.sabadell.volume = this.muted ? 0 : 0.85;
     }
+    if (window.Assets && Assets.sounds.weddingMarch) {
+      Assets.sounds.weddingMarch.volume = this.muted ? 0 : 0.85;
+    }
     if (window.Achievements) Achievements.unlock('silenci');
     return this.muted;
   },
@@ -166,6 +169,8 @@ const AudioEngine = {
 
   setTrack(name) {
     this._stopMusicTimer();
+    // Qualsevol pista sintetitzada atura la marxa nupcial real (MP3).
+    if (window.Assets && Assets.stopWeddingMarch) Assets.stopWeddingMarch();
     this.track = TRACKS[name] || null;
     this.step = 0;
     if (this.track) {
