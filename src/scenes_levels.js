@@ -165,18 +165,10 @@ function createLevel(cfg) {
     return {
       enter() {
         // #region agent log
-        console.log('[ENTER]', cfg.banner||cfg.track, 'musicFile='+cfg.musicFile, 'track='+cfg.track);
+        console.log('[ENTER]', cfg.banner||cfg.track, 'track='+cfg.track);
         // #endregion
-        if (cfg.musicFile === 'wedding') {
-          AudioEngine.stopChiptune();
-          // #region agent log
-          console.log('[WM-DIRECT] requestFile weddingMarch', {ctxState:AudioEngine.ctx?AudioEngine.ctx.state:'null',hasBuffer:AudioEngine.hasFileBuffer('weddingMarch')});
-          // #endregion
-          AudioEngine.requestFile('weddingMarch');
-        } else {
-          AudioEngine.setTrack(cfg.track);
-        }
         AudioEngine.resume();
+        if (cfg.track) AudioEngine.setTrack(cfg.track);
         resetLevel(false);
         intro = 2.6;
       },
@@ -638,8 +630,7 @@ registerScene('level3', createLevel({
 // =====================================================================
 registerScene('level4', createLevel({
   hero: 'nil',
-  track: 'wedding',   // Mendelssohn — marxa nupcial
-  musicFile: 'wedding', // reprodueix l'MP3 real de la marxa nupcial
+  track: 'wedding',   // MP3 real (setTrack redirigeix a weddingMarch)
   banner: 'NIVELL 4', subtitle: 'EL CASAMENT', introSub: 'PLANIFICANT EL CASAMENT',
   hudColor: '#ff8aa6', tokenEmoji: '✅',
   world: { w: 600, h: 420 },

@@ -306,7 +306,11 @@ const AudioEngine = {
     if (!this.ensureCtx()) return false;
     this._stopMusicTimer();
     this._fileQueue = { name, opts };
-    return this._tryPlayQueued();
+    // #region agent log
+    const ok = this._tryPlayQueued();
+    console.log('[WM-REQ]', name, {ok, ctxState: this.ctx.state, hasBuffer: !!this._buffers[name], playing: this.isFilePlaying(name)});
+    // #endregion
+    return ok;
   },
 
   _tryPlayQueued() {
@@ -370,11 +374,17 @@ const AudioEngine = {
   },
 
   setTrack(name) {
+    // Marxa nupcial real (MP3), no chiptune.
+    if (name === 'wedding') {
+      this.stopChiptune();
+      // #region agent log
+      console.log('[WM-SETTRACK] wedding -> MP3');
+      // #endregion
+      this.requestFile('weddingMarch');
+      return;
+    }
     this._stopMusicTimer();
     const next = TRACKS[name] || null;
-    // #region agent log
-    if (this._currentFile === 'weddingMarch' || (this._fileQueue && this._fileQueue.name === 'weddingMarch')) console.warn('[WM-J] setTrack called while weddingMarch active/queued', {name,currentFile:this._currentFile,fileQueue:this._fileQueue?this._fileQueue.name:null,nextExists:!!next});
-    // #endregion
     if (next) this.stopAllFiles();
     this.track = next;
     this.step = 0;

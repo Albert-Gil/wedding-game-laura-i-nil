@@ -26,7 +26,6 @@ const Assets = {
 
   /** Himne del CE Sabadell en recollir la pilota ⚽ (nivell 1). */
   playSabadellHimne() {
-    if (!window.AudioEngine) return false;
     AudioEngine._stopMusicTimer();
     const opts = {
       onended: () => {
@@ -39,21 +38,11 @@ const Assets = {
 
   /** Marxa nupcial real (MP3) en bucle: nivell del casament i caminada cap a l'arc. */
   playWeddingMarch() {
-    if (!window.AudioEngine) return false;
-    AudioEngine._stopMusicTimer();
-    // #region agent log
-    console.log('[WM1] playWeddingMarch called', {ctxState:AudioEngine.ctx?AudioEngine.ctx.state:'null',hasBuffer:AudioEngine.hasFileBuffer('weddingMarch'),isLoading:!!AudioEngine._loading['weddingMarch'],unlocked:AudioEngine._unlocked,started:AudioEngine.started});
-    // #endregion
-    const nowResult = AudioEngine.playFileNow('weddingMarch');
-    // #region agent log
-    console.log('[WM2] playFileNow result', {nowResult,isFilePlaying:AudioEngine.isFilePlaying('weddingMarch'),fileQueue:AudioEngine._fileQueue?AudioEngine._fileQueue.name:null,currentFile:AudioEngine._currentFile});
-    // #endregion
-    if (!nowResult) AudioEngine.requestFile('weddingMarch');
-    return true;
+    return AudioEngine.requestFile('weddingMarch');
   },
 
   stopWeddingMarch() {
-    if (window.AudioEngine) AudioEngine.stopFile('weddingMarch');
+    AudioEngine.stopFile('weddingMarch');
   },
 
   /** Dibuixa el logo centrat; mida = alçada en px de joc. */
