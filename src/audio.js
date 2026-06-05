@@ -21,6 +21,8 @@ const AudioEngine = {
   _loading: {},
   _sources: {},
   _currentFile: null,
+  _fileQueue: null,
+  _keepAliveOsc: null,
 
   track: null,
   step: 0,
@@ -55,7 +57,8 @@ const AudioEngine = {
     if (!this.ensureCtx()) return;
     const done = () => {
       this.started = true;
-      if (!this._currentFile) this._restartMusicTimer();
+      this._tryPlayQueued();
+      if (!this._currentFile && !this._fileQueue) this._restartMusicTimer();
     };
     if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
       const p = this.ctx.resume();
@@ -73,7 +76,7 @@ const AudioEngine = {
 
   _restartMusicTimer() {
     this._stopMusicTimer();
-    if (!this.ctx || !this.track || this.muted || !this.started || this._currentFile) return;
+    if (!this.ctx || !this.track || this.muted || !this.started || this._currentFile || this._fileQueue) return;
     const ms = Math.max(40, Math.round(this.stepDur * 1000));
     this._musicTimer = setInterval(() => {
       if (!this.ctx || !this.track || this.muted) return;
@@ -106,19 +109,41 @@ const AudioEngine = {
     return this.muted;
   },
 
+  /** Oscil·lador silenciós per evitar que el navegador suspengui el context en joc. */
+  _startKeepAlive() {
+    if (!this.ctx || this._keepAliveOsc) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      g.gain.value = 0;
+      osc.connect(g);
+      g.connect(this.master);
+      osc.start();
+      this._keepAliveOsc = { osc, g };
+    } catch (e) {}
+  },
+
   /** Desbloqueig únic després del primer gest: context + descodifica MP3. */
   unlock() {
     if (!this.ensureCtx()) return;
-    this._waitRunning().then((ok) => {
-      if (!ok) return;
+    const finish = () => {
       if (!this._unlocked) {
         this._unlocked = true;
         for (const [name, cfg] of Object.entries(FILE_TRACKS)) {
-          this._loadFileBuffer(name, cfg);
+          this._loadFileBuffer(name, cfg).then(() => this._tryPlayQueued());
         }
       }
-      this.resume();
-    });
+      this.started = true;
+      this._startKeepAlive();
+      this._tryPlayQueued();
+      if (!this._currentFile && !this._fileQueue) this._restartMusicTimer();
+    };
+    if (this.ctx.state === 'running') finish();
+    else {
+      const p = this.ctx.resume();
+      if (p && typeof p.then === 'function') p.then(finish).catch(finish);
+      else finish();
+    }
   },
 
   freq(note) {
@@ -212,8 +237,14 @@ const AudioEngine = {
         const ab = await res.arrayBuffer();
         const buf = await this.ctx.decodeAudioData(ab.slice(0));
         this._buffers[name] = buf;
+        // #region agent log
+        fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_loadFileBuffer',message:'buffer decoded OK',data:{name,duration:buf.duration},timestamp:Date.now(),hypothesisId:'H-B'})}).catch(()=>{});
+        // #endregion
         return buf;
       } catch (e) {
+        // #region agent log
+        fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_loadFileBuffer',message:'buffer decode FAILED',data:{name,err:String(e)},timestamp:Date.now(),hypothesisId:'H-B'})}).catch(()=>{});
+        // #endregion
         return null;
       } finally {
         delete this._loading[name];
@@ -228,6 +259,9 @@ const AudioEngine = {
     if (!buf || !this.ctx) return false;
     this.stopFile(name);
     this._stopMusicTimer();
+    // #region agent log
+    fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_startBuffer',message:'_startBuffer attempting src.start',data:{name,ctxState:this.ctx.state,bufDuration:buf.duration},timestamp:Date.now(),hypothesisId:'H-C'})}).catch(()=>{});
+    // #endregion
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     src.loop = opts.loop != null ? !!opts.loop : !!cfg.loop;
@@ -246,8 +280,14 @@ const AudioEngine = {
     this._currentFile = name;
     try {
       src.start(0);
+      // #region agent log
+      fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_startBuffer',message:'src.start OK',data:{name,masterGain:this.master?this.master.gain.value:null},timestamp:Date.now(),hypothesisId:'H-C'})}).catch(()=>{});
+      // #endregion
       return true;
     } catch (e) {
+      // #region agent log
+      fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_startBuffer',message:'src.start THREW',data:{name,err:String(e)},timestamp:Date.now(),hypothesisId:'H-C'})}).catch(()=>{});
+      // #endregion
       return false;
     }
   },
@@ -258,6 +298,40 @@ const AudioEngine = {
     this.track = null;
   },
 
+  /** Cua un MP3 i intenta reproduir-lo (in-game, fora del gest de l'usuari). */
+  requestFile(name, opts = {}) {
+    const cfg = FILE_TRACKS[name];
+    if (!cfg) return false;
+    if (!this._unlocked) this.unlock();
+    if (!this.ensureCtx()) return false;
+    this._stopMusicTimer();
+    this._fileQueue = { name, opts };
+    // #region agent log
+    fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:requestFile',message:'requestFile called',data:{name,ctxState:this.ctx?this.ctx.state:'null',unlocked:this._unlocked,hasBuffer:!!this._buffers[name],isLoading:!!this._loading[name]},timestamp:Date.now(),hypothesisId:'H-A'})}).catch(()=>{});
+    // #endregion
+    return this._tryPlayQueued();
+  },
+
+  _tryPlayQueued() {
+    if (!this._fileQueue || !this.ensureCtx()) return false;
+    const { name, opts } = this._fileQueue;
+    const cfg = FILE_TRACKS[name];
+    if (!cfg) { this._fileQueue = null; return false; }
+    // #region agent log
+    fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_tryPlayQueued',message:'_tryPlayQueued',data:{name,ctxState:this.ctx.state,hasBuffer:!!this._buffers[name],isLoading:!!this._loading[name]},timestamp:Date.now(),hypothesisId:'H-A H-B'})}).catch(()=>{});
+    // #endregion
+    if (this.ctx.state !== 'running') return false;
+    if (!this._buffers[name]) {
+      this._loadFileBuffer(name, cfg).then(() => this._tryPlayQueued());
+      return false;
+    }
+    if (this._startBuffer(name, cfg, opts)) {
+      this._fileQueue = null;
+      return true;
+    }
+    return false;
+  },
+
   /** Inici quan el buffer ja està carregat (ús in-game). Retorna true només si arrenca. */
   playFileNow(name, opts = {}) {
     const cfg = FILE_TRACKS[name];
@@ -265,39 +339,19 @@ const AudioEngine = {
     if (!this._unlocked) this.unlock();
     if (!this.ensureCtx()) return false;
     this.started = true;
-
-    const tryStart = () => {
-      if (!this._buffers[name] || !this.ctx || this.ctx.state !== 'running') return false;
+    this._stopMusicTimer();
+    if (this.ctx.state === 'running' && this._buffers[name]) {
       return this._startBuffer(name, cfg, opts);
-    };
-
-    if (tryStart()) return true;
-
-    if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
-      const p = this.ctx.resume();
-      const after = () => tryStart();
-      if (p && typeof p.then === 'function') p.then(after);
-      else after();
-    } else if (!this._buffers[name]) {
-      this._loadFileBuffer(name, cfg).then((buf) => {
-        if (buf) tryStart();
-      });
     }
-    return false;
+    this._fileQueue = { name, opts };
+    this._tryPlayQueued();
+    return this.isFilePlaying(name);
   },
 
   /** Reprodueix un MP3 (BufferSource — no requereix gest actiu). */
   playFile(name, opts = {}) {
-    const cfg = FILE_TRACKS[name];
-    if (!cfg) return Promise.resolve(false);
-    return this._waitRunning().then((ok) => {
-      if (!ok) return false;
-      if (this._buffers[name]) return this._startBuffer(name, cfg, opts);
-      return this._loadFileBuffer(name, cfg).then((buf) => {
-        if (!buf) return false;
-        return this._startBuffer(name, cfg, opts);
-      });
-    });
+    this.requestFile(name, opts);
+    return Promise.resolve(this.isFilePlaying(name));
   },
 
   stopFile(name) {
@@ -348,7 +402,7 @@ const AudioEngine = {
   },
 
   update() {
-    /* La música va per setInterval (_restartMusicTimer), no per dt del bucle. */
+    if (this._fileQueue) this._tryPlayQueued();
   },
 
   playStep(i) {

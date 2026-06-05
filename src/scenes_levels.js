@@ -100,8 +100,10 @@ function createLevel(cfg) {
     function onCollect(it) {
       it.got = true;
       if (it.anthem === 'sabadell') {
-        AudioEngine._stopMusicTimer();
-        AudioEngine.playFile('sabadell', {
+        // #region agent log
+        fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'scenes_levels.js:onCollect',message:'anthem sabadell triggered',data:{ctxState:window.AudioEngine&&AudioEngine.ctx?AudioEngine.ctx.state:'no-ctx',unlocked:window.AudioEngine?AudioEngine._unlocked:false,hasBuffer:window.AudioEngine?AudioEngine.hasFileBuffer('sabadell'):false},timestamp:Date.now(),hypothesisId:'H-E'})}).catch(()=>{});
+        // #endregion
+        AudioEngine.requestFile('sabadell', {
           onended: () => {
             if (AudioEngine.track) AudioEngine._restartMusicTimer();
           },
