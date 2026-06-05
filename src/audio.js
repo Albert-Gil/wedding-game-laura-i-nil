@@ -172,36 +172,51 @@ const AudioEngine = {
   _bufLoading: {},
   _bufSources: {},
 
+  /** Promise que es resol quan el context d'àudio està en marxa. */
+  _waitRunning() {
+    if (!this.ensureCtx()) return Promise.resolve(false);
+    this.started = true;
+    if (this.ctx.state === 'running') return Promise.resolve(true);
+    const p = this.ctx.resume();
+    if (p && typeof p.then === 'function') {
+      return p.then(() => this.ctx.state === 'running').catch(() => false);
+    }
+    return Promise.resolve(this.ctx.state === 'running');
+  },
+
   /** Espera que el context estigui en marxa abans de reproduir (Firefox exigeix gest + resume). */
   _whenRunning(fn) {
-    if (!this.ensureCtx()) return false;
-    this.started = true;
-    const go = () => { try { fn(); } catch (e) {} };
-    if (this.ctx.state === 'running') { go(); return true; }
-    const p = this.ctx.resume();
-    if (p && typeof p.then === 'function') { p.then(go).catch(go); return true; }
-    go();
+    this._waitRunning().then((ok) => { if (ok) try { fn(); } catch (e) {} });
     return true;
   },
 
   loadBuffer(name, url) {
     if (this.buffers[name]) return Promise.resolve(this.buffers[name]);
     if (this._bufLoading[name]) return this._bufLoading[name];
-    if (!this.ensureCtx()) return Promise.resolve(null);
-    const ctx = this.ctx;
-    const p = fetch(url)
-      .then((r) => { if (!r.ok) throw new Error('fetch ' + url); return r.arrayBuffer(); })
-      .then((ab) => new Promise((res, rej) => {
-        let settled = false;
-        const ok = (b) => { if (!settled) { settled = true; res(b); } };
-        const no = (e) => { if (!settled) { settled = true; rej(e); } };
-        try {
-          const ret = ctx.decodeAudioData(ab, ok, no);
-          if (ret && typeof ret.then === 'function') ret.then(ok, no);
-        } catch (e) { no(e); }
-      }))
-      .then((buf) => { this.buffers[name] = buf; delete this._bufLoading[name]; return buf; })
-      .catch(() => { delete this._bufLoading[name]; return null; });
+    const p = this._waitRunning()
+      .then((ok) => {
+        if (!ok || !this.ctx) return null;
+        return fetch(url)
+          .then((r) => { if (!r.ok) throw new Error('fetch ' + url); return r.arrayBuffer(); })
+          .then((ab) => new Promise((res, rej) => {
+            let settled = false;
+            const done = (b) => { if (!settled) { settled = true; res(b); } };
+            const fail = (e) => { if (!settled) { settled = true; rej(e); } };
+            try {
+              const ret = this.ctx.decodeAudioData(ab, done, fail);
+              if (ret && typeof ret.then === 'function') ret.then(done, fail);
+            } catch (e) { fail(e); }
+          }));
+      })
+      .then((buf) => {
+        if (buf) this.buffers[name] = buf;
+        delete this._bufLoading[name];
+        return buf;
+      })
+      .catch(() => {
+        delete this._bufLoading[name];
+        return null;
+      });
     this._bufLoading[name] = p;
     return p;
   },
