@@ -204,9 +204,9 @@ registerScene('finalwalk', () => {
 
   return {
     enter() {
-      AudioEngine.resume();
-      AudioEngine.setTrack(null);
+      AudioEngine.stopChiptune();
       if (window.Assets) Assets.playWeddingMarch();
+      AudioEngine.resume();
     },
     update(dt) {
       t += dt; parts.update(dt);

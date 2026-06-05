@@ -27,7 +27,7 @@ const Assets = {
   /** Himne del CE Sabadell en recollir la pilota ⚽ (nivell 1). */
   playSabadellHimne() {
     if (!window.AudioEngine) return false;
-    AudioEngine.playFile('sabadell', {
+    AudioEngine.playFileNow('sabadell', {
       onended: () => {
         if (AudioEngine.track) AudioEngine._restartMusicTimer();
       },
@@ -38,7 +38,7 @@ const Assets = {
   /** Marxa nupcial real (MP3) en bucle: nivell del casament i caminada cap a l'arc. */
   playWeddingMarch() {
     if (!window.AudioEngine) return false;
-    AudioEngine.playFile('weddingMarch');
+    AudioEngine.playFileNow('weddingMarch');
     return true;
   },
 

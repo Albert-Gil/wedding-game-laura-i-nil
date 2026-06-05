@@ -6,8 +6,8 @@
 
 /** Fitxers MP3 reals del joc. */
 const FILE_TRACKS = {
-  sabadell: { url: 'assets/himne-sabadell.mp3', gain: 1.3 },
-  weddingMarch: { url: 'assets/mendelssohn-wedding-march.mp3', gain: 1.1, loop: true },
+  sabadell: { url: 'assets/himne-sabadell.mp3', gain: 2.2 },
+  weddingMarch: { url: 'assets/mendelssohn-wedding-march.mp3', gain: 2.0, loop: true },
 };
 
 const AudioEngine = {
@@ -225,7 +225,7 @@ const AudioEngine = {
 
   _startBuffer(name, cfg, opts) {
     const buf = this._buffers[name];
-    if (!buf || !this.ctx || this.ctx.state !== 'running') return false;
+    if (!buf || !this.ctx) return false;
     this.stopFile(name);
     this._stopMusicTimer();
     const src = this.ctx.createBufferSource();
@@ -250,6 +250,26 @@ const AudioEngine = {
     } catch (e) {
       return false;
     }
+  },
+
+  /** Atura només la música chiptune (no els MP3 en reproducció). */
+  stopChiptune() {
+    this._stopMusicTimer();
+    this.track = null;
+  },
+
+  /** Inici síncron quan el buffer ja està carregat (ús in-game). */
+  playFileNow(name, opts = {}) {
+    const cfg = FILE_TRACKS[name];
+    if (!cfg) return false;
+    const run = () => {
+      if (this._buffers[name]) return this._startBuffer(name, cfg, opts);
+      this.playFile(name, opts);
+      return false;
+    };
+    if (this.ctx && this.ctx.state === 'running') return run();
+    this._waitRunning().then((ok) => { if (ok) run(); });
+    return true;
   },
 
   /** Reprodueix un MP3 (BufferSource — no requereix gest actiu). */
@@ -289,8 +309,9 @@ const AudioEngine = {
 
   setTrack(name) {
     this._stopMusicTimer();
-    this.stopAllFiles();
-    this.track = TRACKS[name] || null;
+    const next = TRACKS[name] || null;
+    if (next) this.stopAllFiles();
+    this.track = next;
     this.step = 0;
     if (this.track) {
       // beatDiv 2 = un pas per corxera; bpm = negra (♩) per minut.

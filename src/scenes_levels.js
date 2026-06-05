@@ -158,13 +158,13 @@ function createLevel(cfg) {
 
     return {
       enter() {
-        AudioEngine.resume();
         if (cfg.musicFile === 'wedding' && window.Assets) {
-          AudioEngine.setTrack(null);
+          AudioEngine.stopChiptune();
           Assets.playWeddingMarch();
         } else {
           AudioEngine.setTrack(cfg.track);
         }
+        AudioEngine.resume();
         resetLevel(false);
         intro = 2.6;
       },
