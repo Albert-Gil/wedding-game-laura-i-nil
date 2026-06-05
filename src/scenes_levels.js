@@ -99,13 +99,20 @@ function createLevel(cfg) {
 
     function onCollect(it) {
       it.got = true;
+      if (it.anthem === 'sabadell') {
+        AudioEngine._stopMusicTimer();
+        AudioEngine.playFile('sabadell', {
+          onended: () => {
+            if (AudioEngine.track) AudioEngine._restartMusicTimer();
+          },
+        });
+      }
       AudioEngine.sfx(it.big ? 'star' : 'pickup');
       parts.burst(it.x, it.y - 8, it.pc || ['#ffd166', '#fff', '#8effc0'], 12, { up: 30 });
       if (it.count !== false) { collected++; }
       if (it.float) floater(it.float, it.x, it.y - 14, it.fc || '#ffd166');
       if (cfg.onItem) cfg.onItem(it, { floater, collected, goal });
       if (it.ach) Achievements.unlock(it.ach);
-      if (it.anthem === 'sabadell' && window.Assets) Assets.playSabadellHimne();
       checkGoal();
     }
 

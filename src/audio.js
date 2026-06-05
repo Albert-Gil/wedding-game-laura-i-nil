@@ -55,7 +55,7 @@ const AudioEngine = {
     if (!this.ensureCtx()) return;
     const done = () => {
       this.started = true;
-      this._restartMusicTimer();
+      if (!this._currentFile) this._restartMusicTimer();
     };
     if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
       const p = this.ctx.resume();
@@ -73,7 +73,7 @@ const AudioEngine = {
 
   _restartMusicTimer() {
     this._stopMusicTimer();
-    if (!this.ctx || !this.track || this.muted || !this.started) return;
+    if (!this.ctx || !this.track || this.muted || !this.started || this._currentFile) return;
     const ms = Math.max(40, Math.round(this.stepDur * 1000));
     this._musicTimer = setInterval(() => {
       if (!this.ctx || !this.track || this.muted) return;
