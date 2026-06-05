@@ -3,14 +3,7 @@
    ===================================================================== */
 
 function unlockAudio() {
-  AudioEngine.ensureCtx();
-  AudioEngine.resume();
-  if (window.Assets) Assets.primeAudio();
-  // Precarrega i descodifica els MP3 pel graf Web Audio (start sense retard).
-  if (window.AudioEngine && AudioEngine.loadBuffer && window.Assets) {
-    AudioEngine.loadBuffer('sabadell', Assets.HIMNE_SABADELL_SRC);
-    AudioEngine.loadBuffer('weddingMarch', Assets.WEDDING_MARCH_SRC);
-  }
+  AudioEngine.unlock();
 }
 window.addEventListener('load', () => {
   Achievements.load();

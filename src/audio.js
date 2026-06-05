@@ -1,14 +1,23 @@
 /* =====================================================================
-   MOTOR D'ÀUDIO — chiptune sintetitzat (Web Audio API)
-   Música per escena + efectes de so. Tot generat, sense fitxers externs.
+   MOTOR D'ÀUDIO — chiptune (Web Audio) + MP3 (elements HTML via el graf)
+   Un sol desbloqueig, un sol master gain, compatible Firefox/iOS.
    ===================================================================== */
+
+/** Fitxers MP3 reals del joc. */
+const FILE_TRACKS = {
+  sabadell: { url: 'assets/himne-sabadell.mp3', gain: 1.3 },
+  weddingMarch: { url: 'assets/mendelssohn-wedding-march.mp3', gain: 1.1, loop: true },
+};
 
 const AudioEngine = {
   ctx: null,
   master: null,
   muted: false,
   started: false,
+  _unlocked: false,
   _musicTimer: null,
+  _media: {},
+  _currentFile: null,
 
   track: null,
   step: 0,
@@ -90,14 +99,20 @@ const AudioEngine = {
     this.muted = !this.muted;
     localStorage.setItem('mos_muted', this.muted ? '1' : '0');
     this.applyMute();
-    if (window.Assets && Assets.sounds.sabadell) {
-      Assets.sounds.sabadell.volume = this.muted ? 0 : 0.85;
-    }
-    if (window.Assets && Assets.sounds.weddingMarch) {
-      Assets.sounds.weddingMarch.volume = this.muted ? 0 : 0.85;
-    }
     if (window.Achievements) Achievements.unlock('silenci');
     return this.muted;
+  },
+
+  /** Desbloqueig únic després del primer gest: context + precàrrega MP3. */
+  unlock() {
+    if (!this.ensureCtx()) return;
+    if (!this._unlocked) {
+      this._unlocked = true;
+      for (const [name, cfg] of Object.entries(FILE_TRACKS)) {
+        this._ensureMedia(name, cfg);
+      }
+    }
+    this.resume();
   },
 
   freq(note) {
@@ -167,11 +182,7 @@ const AudioEngine = {
     }
   },
 
-  // ---- Reproducció de fitxers MP3 via Web Audio (fiable a Firefox/iOS) ----
-  buffers: {},
-  _bufLoading: {},
-  _bufSources: {},
-
+  // ---- MP3 via elements HTML connectats al graf Web Audio ----
   /** Promise que es resol quan el context d'àudio està en marxa. */
   _waitRunning() {
     if (!this.ensureCtx()) return Promise.resolve(false);
@@ -184,90 +195,110 @@ const AudioEngine = {
     return Promise.resolve(this.ctx.state === 'running');
   },
 
-  /** Espera que el context estigui en marxa abans de reproduir (Firefox exigeix gest + resume). */
-  _whenRunning(fn) {
-    this._waitRunning().then((ok) => { if (ok) try { fn(); } catch (e) {} });
-    return true;
-  },
-
-  loadBuffer(name, url) {
-    if (this.buffers[name]) return Promise.resolve(this.buffers[name]);
-    if (this._bufLoading[name]) return this._bufLoading[name];
-    const p = this._waitRunning()
-      .then((ok) => {
-        if (!ok || !this.ctx) return null;
-        return fetch(url)
-          .then((r) => { if (!r.ok) throw new Error('fetch ' + url); return r.arrayBuffer(); })
-          .then((ab) => new Promise((res, rej) => {
-            let settled = false;
-            const done = (b) => { if (!settled) { settled = true; res(b); } };
-            const fail = (e) => { if (!settled) { settled = true; rej(e); } };
-            try {
-              const ret = this.ctx.decodeAudioData(ab, done, fail);
-              if (ret && typeof ret.then === 'function') ret.then(done, fail);
-            } catch (e) { fail(e); }
-          }));
-      })
-      .then((buf) => {
-        if (buf) this.buffers[name] = buf;
-        delete this._bufLoading[name];
-        return buf;
-      })
-      .catch(() => {
-        delete this._bufLoading[name];
-        return null;
-      });
-    this._bufLoading[name] = p;
-    return p;
-  },
-
-  stopBuffer(name) {
-    const s = this._bufSources[name];
-    if (s) {
-      try { s.onended = null; s.stop(); } catch (e) {}
-      delete this._bufSources[name];
-    }
-  },
-
-  isBufferPlaying(name) {
-    return !!this._bufSources[name];
-  },
-
-  /** Reprodueix un MP3 descodificat pel graf Web Audio (passa pel master → respecta el mut). */
-  playBuffer(name, url, opts = {}) {
-    const begin = (buf) => {
-      if (!buf) { if (opts.onfail) opts.onfail(); return; }
-      this._whenRunning(() => {
-        if (this.ctx.state !== 'running') { if (opts.onfail) opts.onfail(); return; }
-        this.stopBuffer(name);
-        const src = this.ctx.createBufferSource();
-        src.buffer = buf;
-        src.loop = !!opts.loop;
-        const g = this.ctx.createGain();
-        g.gain.value = opts.gain != null ? opts.gain : 1;
-        src.connect(g);
-        g.connect(this.master);
-        src.onended = () => {
-          if (this._bufSources[name] === src) {
-            delete this._bufSources[name];
-            if (opts.onended) opts.onended();
-          }
-        };
-        this._bufSources[name] = src;
-        try { src.start(0); } catch (e) { if (opts.onfail) opts.onfail(); }
-      });
+  _ensureMedia(name, cfg) {
+    if (this._media[name]) return this._media[name];
+    const el = new Audio(cfg.url);
+    el.preload = 'auto';
+    if (cfg.loop) el.loop = true;
+    if ('playsInline' in el) el.playsInline = true;
+    const entry = {
+      el,
+      src: null,
+      gainNode: null,
+      gain: cfg.gain ?? 1,
+      loop: !!cfg.loop,
+      ready: false,
+      onended: null,
     };
-    if (!this.ensureCtx()) { if (opts.onfail) opts.onfail(); return false; }
-    if (this.buffers[name]) begin(this.buffers[name]);
-    else this.loadBuffer(name, url).then(begin);
-    return true;
+    const markReady = () => { entry.ready = true; };
+    el.addEventListener('canplaythrough', markReady, { once: true });
+    el.addEventListener('loadeddata', markReady, { once: true });
+    el.addEventListener('ended', () => {
+      if (this._currentFile === name) this._currentFile = null;
+      const cb = entry.onended;
+      entry.onended = null;
+      if (cb) cb();
+    });
+    el.addEventListener('error', () => { entry.ready = false; });
+    el.load();
+    this._media[name] = entry;
+    return entry;
+  },
+
+  _wireMedia(name) {
+    const m = this._media[name];
+    if (!m || m.src || !this.ctx) return;
+    try {
+      m.src = this.ctx.createMediaElementSource(m.el);
+      m.gainNode = this.ctx.createGain();
+      m.gainNode.gain.value = m.gain;
+      m.src.connect(m.gainNode);
+      m.gainNode.connect(this.master);
+    } catch (e) { /* ja connectat */ }
+  },
+
+  _waitMediaReady(name) {
+    const m = this._media[name];
+    if (!m) return Promise.resolve(false);
+    if (m.ready || m.el.readyState >= 3) return Promise.resolve(true);
+    return new Promise((res) => {
+      const done = (ok) => { if (ok) m.ready = true; res(ok); };
+      m.el.addEventListener('canplaythrough', () => done(true), { once: true });
+      m.el.addEventListener('error', () => done(false), { once: true });
+      setTimeout(() => done(m.el.readyState >= 2), 8000);
+    });
+  },
+
+  /** Reprodueix un MP3 pel graf Web Audio (descodificació nativa del navegador). */
+  playFile(name, opts = {}) {
+    const cfg = FILE_TRACKS[name];
+    if (!cfg) return Promise.resolve(false);
+    return this._waitRunning().then((ok) => {
+      if (!ok) return false;
+      if (!this._unlocked) this.unlock();
+      const m = this._ensureMedia(name, cfg);
+      return this._waitMediaReady(name).then((ready) => {
+        if (!ready) return false;
+        this._wireMedia(name);
+        this.stopFile(name);
+        m.onended = opts.onended || null;
+        if (opts.loop != null) m.el.loop = !!opts.loop;
+        if (m.gainNode) m.gainNode.gain.value = m.gain;
+        try { m.el.currentTime = 0; } catch (e) {}
+        this._stopMusicTimer();
+        this._currentFile = name;
+        const p = m.el.play();
+        if (p && typeof p.then === 'function') {
+          return p.then(() => true).catch(() => false);
+        }
+        return true;
+      });
+    });
+  },
+
+  stopFile(name) {
+    const m = this._media[name];
+    if (!m) return;
+    m.onended = null;
+    try {
+      m.el.pause();
+      m.el.currentTime = 0;
+    } catch (e) {}
+    if (this._currentFile === name) this._currentFile = null;
+  },
+
+  stopAllFiles() {
+    for (const name of Object.keys(this._media)) this.stopFile(name);
+  },
+
+  isFilePlaying(name) {
+    const m = this._media[name];
+    return !!(m && !m.el.paused);
   },
 
   setTrack(name) {
     this._stopMusicTimer();
-    // Qualsevol pista sintetitzada atura els MP3 reals (marxa nupcial / himne).
-    if (window.Assets && Assets.stopWeddingMarch) Assets.stopWeddingMarch();
-    if (window.Assets && Assets._stopSabadellPlayback) Assets._stopSabadellPlayback();
+    this.stopAllFiles();
     this.track = TRACKS[name] || null;
     this.step = 0;
     if (this.track) {
