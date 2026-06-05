@@ -9,6 +9,17 @@ const BOSS_ATTACKS = [
   { name: "RSVP D'ÚLTIMA HORA", emoji: '💌', kind: 'aim', n: 3, spd: 75 },
   { name: 'PETICIÓ DE +1', emoji: '👥', kind: 'sides', n: 4, spd: 80 },
   { name: 'CANVI DE MENÚ', emoji: '🍽', kind: 'fan', n: 7, spd: 70 },
+  { name: 'TIA DEL WHATSAPP', emoji: '💬', kind: 'tia', n: 5, spd: 92 },
+];
+
+const TIA_MSGS = [
+  'I el menú?',
+  'Quant costa?',
+  'Puc portar +1?',
+  'A quina hora?',
+  'Jo vinc segur!',
+  'He reenviat al grup',
+  'Ho he posat al xat',
 ];
 
 const WEAPONS = [
@@ -71,6 +82,21 @@ registerScene('boss', () => {
       for (let i = 0; i < a.n; i++) {
         const ang = Math.PI / 2 + (i - (a.n - 1) / 2) * 0.28;
         bshots.push({ x: boss.x, y: boss.y + 18 * BOSS_DRAW_SCALE, vx: Math.cos(ang) * a.spd, vy: Math.sin(ang) * a.spd, e: a.emoji });
+      }
+    } else if (a.kind === 'tia') {
+      const bm = playAreaMargin('boss');
+      const yMin = bm.top + 12;
+      const yMax = VH - bm.bottom - 8;
+      for (let i = 0; i < a.n; i++) {
+        const fromLeft = i % 2 === 0;
+        bshots.push({
+          x: fromLeft ? -18 : VW + 18,
+          y: U.rand(yMin, yMax),
+          vx: fromLeft ? a.spd : -a.spd,
+          vy: U.rand(-22, 22),
+          e: '💬',
+          msg: U.pick(TIA_MSGS),
+        });
       }
     }
   }
@@ -188,7 +214,10 @@ registerScene('boss', () => {
       drawBossMonster(ctx, boss.x, boss.y, t, boss.hit > 0, boss.hp / boss.maxhp);
 
       // projectils
-      for (const s of bshots) drawEmoji(ctx, s.e, s.x, s.y, 15);
+      for (const s of bshots) {
+        drawEmoji(ctx, s.e, s.x, s.y, s.msg ? 13 : 15);
+        if (s.msg) drawText(ctx, s.msg, s.x, s.y - fs(10), { size: 6, color: '#fff', align: 'center', shadow: '#000' });
+      }
       for (const s of pshots) drawEmoji(ctx, s.e, s.x, s.y, 13);
 
       // jugador (Nil)
@@ -216,6 +245,11 @@ registerScene('boss', () => {
       // avís d'atac
       if (boss.warn && Math.floor(t * 8) % 2 === 0) {
         drawCenter(ctx, '⚠ ' + boss.warn + ' ⚠', VH / 2 - 20, { size: 13, color: '#ffd166', shadow: '#000', sx: 1, sy: 1 });
+      }
+      if (boss.warn === 'TIA DEL WHATSAPP') {
+        const side = Math.floor(t * 3) % 2 === 0 ? 28 : VW - 28;
+        drawEmoji(ctx, '👩', side, VH * 0.55, 18);
+        drawEmoji(ctx, '📱', side + (side < VW / 2 ? 14 : -14), VH * 0.55 + fs(10), 11);
       }
 
       ctx.restore();

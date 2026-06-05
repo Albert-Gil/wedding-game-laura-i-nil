@@ -537,10 +537,12 @@ registerScene('finalmsg', () => {
       });
       ctx.globalAlpha = 1;
       if (idx === seq.length - 1 && t > 2.5) {
-        const footTop = Math.max(block.bottom + fs(24), VH - fs(52));
-        drawCenter(ctx, 'Laura ❤ Nil', footTop, { size: 9, color: 'rgba(255,255,255,0.75)' });
-        drawCenter(ctx, '13.06.2026 · Mas d\'Osor', footTop + fs(14), { size: 8, color: 'rgba(255,255,255,0.6)' });
-        drawCenter(ctx, Input.hasTouch ? 'Toca per tornar a jugar' : 'Prem qualsevol tecla per tornar', footTop + fs(30), { size: 7, color: 'rgba(255,255,255,0.4)' });
+        const footTop = Math.max(block.bottom + fs(24), VH - fs(72));
+        if (!Assets.drawLogo(ctx, VW / 2, footTop + fs(8), fs(40), a)) {
+          drawCenter(ctx, 'Laura ❤ Nil', footTop, { size: 9, color: 'rgba(255,255,255,0.75)' });
+        }
+        drawCenter(ctx, '13.06.2026 · Mas d\'Osor', footTop + fs(36), { size: 8, color: 'rgba(255,255,255,0.6)' });
+        drawCenter(ctx, Input.hasTouch ? 'Toca per tornar a jugar' : 'Prem qualsevol tecla per tornar', footTop + fs(52), { size: 7, color: 'rgba(255,255,255,0.4)' });
       }
     },
     onInput(a) {

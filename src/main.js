@@ -9,6 +9,7 @@ function unlockAudio() {
 window.addEventListener('load', () => {
   Achievements.load();
   AudioEngine.init();
+  Assets.init();
   bootEngine('boot');     // defineix view + bucle
   Input.init();           // necessita view.canvas ja creat
   // Desbloqueig d'àudio (política del navegador): qualsevol interacció.

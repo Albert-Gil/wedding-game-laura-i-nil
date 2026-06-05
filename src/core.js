@@ -96,12 +96,37 @@ class Particles {
       });
     }
   }
+
+  /** Confeti amb inicials n/l (caminada cap a l'altar). */
+  initialConfetti(x, y, n = 12, opts = {}) {
+    const letters = ['n', 'l'];
+    const colors = opts.colors || ['#ff9ec2', '#ffd166', '#fff', '#c39bff', '#7fe9ff', '#ff5a7a'];
+    const spd = opts.spd || 70;
+    const life = opts.life || 1.1;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = U.rand(spd * 0.35, spd);
+      this.list.push({
+        x, y,
+        vx: Math.cos(a) * s,
+        vy: Math.sin(a) * s - (opts.up || 35),
+        life, t: life,
+        color: U.pick(colors),
+        size: opts.size || fs(8),
+        grav: opts.grav != null ? opts.grav : 50,
+        text: U.pick(letters),
+        rot: U.rand(0, Math.PI * 2),
+        vr: U.rand(-3, 3),
+      });
+    }
+  }
   update(dt) {
     for (const p of this.list) {
       p.t -= dt;
       p.vy += p.grav * dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
+      if (p.rot != null && p.vr) p.rot += p.vr * dt;
     }
     this.list = this.list.filter(p => p.t > 0);
   }
@@ -110,10 +135,15 @@ class Particles {
       const a = U.clamp(p.t / p.life, 0, 1);
       ctx.globalAlpha = a;
       if (p.text) {
-        ctx.font = `${Math.round(p.size)}px monospace`;
+        ctx.save();
+        ctx.translate(p.x - cam.x, p.y - cam.y);
+        if (p.rot != null) ctx.rotate(p.rot + (p.vr || 0) * (1 - a));
+        ctx.font = `bold ${Math.round(p.size)}px Georgia, "Times New Roman", serif`;
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.fillStyle = p.color;
-        ctx.fillText(p.text, p.x - cam.x, p.y - cam.y);
+        ctx.fillText(p.text, 0, 0);
+        ctx.restore();
       } else {
         ctx.fillStyle = p.color;
         ctx.fillRect(Math.round(p.x - cam.x), Math.round(p.y - cam.y), p.size, p.size);

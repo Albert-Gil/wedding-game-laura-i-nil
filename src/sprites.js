@@ -253,6 +253,7 @@ function drawArch(ctx, x, y) {
   ctx.fillStyle = '#3aae62';
   ctx.fillRect(x - 20 * sc, y - 2, fs(6), fs(3));
   ctx.fillRect(x + 14 * sc, y - 2, fs(6), fs(3));
+  if (window.Assets) Assets.drawLogo(ctx, x, y - 38 * sc, fs(15), 0.95);
 }
 
 function drawEmoji(ctx, emoji, x, y, size = 14) {

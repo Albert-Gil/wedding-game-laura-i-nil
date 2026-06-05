@@ -51,10 +51,14 @@ registerScene('title', () => {
       // terra
       ctx.fillStyle = '#23304a'; ctx.fillRect(0, VH - 40, VW, 40);
 
-      drawCenter(ctx, 'SIMULACIÓ ACTIVADA', fs(40), { size: 9, color: '#7fe9ff' });
-      drawCenter(ctx, 'LAURA      NIL', fs(64), { size: 22, color: '#fff', shadow: '#ff5a7a', sx: 2, sy: 2 });
-      drawHeart(ctx, VW / 2, fs(60), 6, '#ff5a7a');
-      drawCenter(ctx, 'una aventura de casament', fs(84), { size: 8, color: '#ffd166' });
+      drawCenter(ctx, 'SIMULACIÓ ACTIVADA', fs(28), { size: 9, color: '#7fe9ff' });
+      const logoY = fs(58);
+      const logoPulse = 0.9 + Math.sin(t * 2) * 0.1;
+      if (!Assets.drawLogo(ctx, VW / 2, logoY, fs(56), logoPulse)) {
+        drawCenter(ctx, 'LAURA      NIL', logoY + fs(8), { size: 22, color: '#fff', shadow: '#ff5a7a', sx: 2, sy: 2 });
+        drawHeart(ctx, VW / 2, logoY + fs(28), 6, '#ff5a7a');
+      }
+      drawCenter(ctx, 'una aventura de casament', fs(78), { size: 8, color: '#ffd166' });
 
       const bob = Math.sin(t * 3) * fs(2);
       drawHero(ctx, HEROES.nil, VW / 2 - fs(40), VH - fs(50) + bob, 'right', t, false);
@@ -186,8 +190,17 @@ registerScene('finalwalk', () => {
     { x: 620 + padX, text: 'Millor Equip', shown: false },
   ];
   let curBanner = null, bannerT = 0;
+  let handWarnT = 0, handCooldown = 0, handAlt = false;
+  let speech = null;
+  const HAND_DIST = 40;
   const petals = [];
-  for (let i = 0; i < 24; i++) petals.push({ x: U.rand(0, VW), y: U.rand(-20, VH), v: U.rand(10, 24), sway: U.rand(0, 6), c: U.pick(['#ff9ec2', '#ffd166', '#fff', '#c39bff']) });
+  for (let i = 0; i < 24; i++) {
+    petals.push({
+      x: U.rand(0, VW), y: U.rand(-20, VH), v: U.rand(10, 24), sway: U.rand(0, 6),
+      c: U.pick(['#ff9ec2', '#ffd166', '#fff', '#c39bff']),
+      letter: i % 2 ? 'n' : 'l',
+    });
+  }
 
   return {
     enter() {
@@ -210,6 +223,27 @@ registerScene('finalwalk', () => {
         laura.x = U.lerp(laura.x, nil.x - 16, dt * 4.6);
         laura.y = U.lerp(laura.y, nil.y + 6, dt * 4.6);
 
+        const handDist = Math.hypot(nil.x - laura.x, nil.y - laura.y);
+        if (handDist > HAND_DIST) {
+          handWarnT += dt;
+          if (handWarnT > 0.4 && handCooldown <= 0) {
+            handCooldown = 4.8;
+            handWarnT = 0;
+            speech = handAlt
+              ? { who: 'laura', text: 'Vaig tan ràpid com puc!', t: 2.8 }
+              : { who: 'nil', text: 'Laura, espera\'m!', t: 2.8 };
+            handAlt = !handAlt;
+            AudioEngine.sfx('select');
+          }
+        } else {
+          handWarnT = 0;
+        }
+        if (handCooldown > 0) handCooldown -= dt;
+        if (speech) {
+          speech.t -= dt;
+          if (speech.t <= 0) speech = null;
+        }
+
         cam = U.clamp(nil.x - VW / 2, 0, Math.max(0, world.w - VW));
 
         // banners pel camí
@@ -221,12 +255,17 @@ registerScene('finalwalk', () => {
           reached = true; reachT = 0;
           Achievements.unlock('equip');
           AudioEngine.sfx('win');
+          parts.initialConfetti(archX, 138, 28, { spd: 95, up: 45 });
+          parts.initialConfetti(nil.x, nil.y - fs(18), 18, { spd: 75, up: 55 });
+          parts.initialConfetti(laura.x, laura.y - fs(18), 18, { spd: 75, up: 55 });
         }
       } else {
         reachT += dt;
         nil.x = U.lerp(nil.x, archX, dt * 3);
         laura.x = U.lerp(laura.x, archX - 12, dt * 3);
-        if (U.chance(0.4)) parts.burst(U.rand(cam, cam + VW), U.rand(40, 120), ['#ff9ec2', '#ffd166', '#fff', '#7fe9ff', '#c39bff'], 8, { up: -20, grav: 60 });
+        if (U.chance(0.45)) {
+          parts.initialConfetti(U.rand(cam + 20, cam + VW - 20), U.rand(24, 110), 5, { up: -15, grav: 48, spd: 58, life: 1.4 });
+        }
         if (reachT > 3.0) SM.go('ending', {}, 2.4);
       }
       if (bannerT > 0) bannerT -= dt;
@@ -255,9 +294,31 @@ registerScene('finalwalk', () => {
       for (const e of list) drawHero(ctx, e.h, e.x - cam, e.y, facing, t, !reached && (Input.x || Input.y));
       // maneta (cor entre tots dos)
       drawHeart(ctx, (nil.x + laura.x) / 2 - cam, Math.min(nil.y, laura.y) - fs(22) + Math.sin(t * 3) * fs(2), 3, '#ff5a7a');
+      if (speech && speech.t > 0) {
+        const sp = speech.who === 'nil' ? nil : laura;
+        const sx = sp.x - cam;
+        const sy = sp.y - fs(26);
+        const col = speech.who === 'nil' ? '#3f7fd6' : '#e0607f';
+        const tw = fs(92);
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(sx - tw / 2, sy - fs(10), tw, fs(16));
+        drawText(ctx, speech.text, sx, sy, { size: 7, color: col, align: 'center', shadow: '#000' });
+      }
 
-      // pètals
-      for (const p of petals) { ctx.fillStyle = p.c; ctx.fillRect(p.x - cam % VW, p.y, 2, 2); }
+      // pètals / confeti d'inicials
+      for (const p of petals) {
+        const px = p.x - cam % VW;
+        if (reached) {
+          ctx.font = `bold ${fs(7)}px Georgia, "Times New Roman", serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = p.c;
+          ctx.fillText(p.letter, px, p.y);
+        } else {
+          ctx.fillStyle = p.c;
+          ctx.fillRect(px, p.y, 2, 2);
+        }
+      }
       parts.render(ctx, { x: cam, y: 0 });
 
       // HUD
@@ -323,17 +384,21 @@ registerScene('ending', () => {
       const s = seq[idx];
       const a = U.clamp(t / 0.6, 0, 1) * U.clamp((s.hold - t) / 0.5, 0, 1);
       ctx.globalAlpha = a;
-      const block = drawCenterBlock(ctx, s.lines, VH / 2, {
-        size: s.size,
-        color: s.color,
-        shadow: 'rgba(0,0,0,0.6)',
-        sx: 1,
-        sy: 2,
-      });
+      if (idx === 0 && Assets.drawLogo(ctx, VW / 2, VH / 2 - fs(20), fs(72), a)) {
+        drawCenter(ctx, '13.06.2026', VH / 2 + fs(36), { size: 10, color: 'rgba(255,255,255,0.55)' });
+      } else {
+        const block = drawCenterBlock(ctx, s.lines, VH / 2, {
+          size: s.size,
+          color: s.color,
+          shadow: 'rgba(0,0,0,0.6)',
+          sx: 1,
+          sy: 2,
+        });
+        if (idx === 0) drawHeart(ctx, VW / 2, block.top - fs(16), 6, '#ff5a7a');
+      }
       ctx.globalAlpha = 1;
-      if (idx === 0) drawHeart(ctx, VW / 2, block.top - fs(16), 6, '#ff5a7a');
       if (idx === seq.length - 1 && Math.floor(t * 1.4) % 2 === 0) {
-        const promptY = Math.max(block.bottom + fs(18), VH - fs(16));
+        const promptY = VH - fs(16);
         drawCenter(ctx, Input.hasTouch ? 'Toca per continuar' : 'Prem qualsevol tecla', promptY, { size: 7, color: 'rgba(255,255,255,0.45)' });
       }
     },

@@ -18,7 +18,7 @@ const ACH_DEFS = [
   { id: 'jugador2', title: 'Jugador 2 Connectat', desc: 'Laura entra a la partida.' },
   { id: 'equip', title: 'Equip Imparable', desc: 'Camineu junts cap a l\'altar.' },
   { id: 'futur', title: 'Futur Prometedor', desc: 'Descobreix el fons d\'aventures.' },
-  { id: 'complet', title: 'Tutorial Completat', desc: 'Arriba al final de tot.' },
+  { id: 'complet', title: 'Història Completada', desc: 'Arriba al final de tot.' },
   // Ocults / Easter eggs
   { id: 'paciencia', title: 'La Paciència és una Virtut', desc: 'Espera tranquil·lament al títol.', hidden: true },
   { id: 'silenci', title: 'Silenci Incòmode', desc: 'Has tocat el botó del so.', hidden: true },
