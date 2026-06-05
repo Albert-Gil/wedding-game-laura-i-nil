@@ -1,6 +1,7 @@
 /* =====================================================================
-   MOTOR D'ÀUDIO — chiptune (Web Audio) + MP3 (elements HTML via el graf)
-   Un sol desbloqueig, un sol master gain, compatible Firefox/iOS.
+   MOTOR D'ÀUDIO — chiptune + MP3 (AudioBuffer → BufferSource)
+   Els MP3 es descodifiquen al desbloqueig; la reproducció no depèn de
+   audio.play() i funciona des del bucle de joc (sense gest actiu).
    ===================================================================== */
 
 /** Fitxers MP3 reals del joc. */
@@ -16,7 +17,9 @@ const AudioEngine = {
   started: false,
   _unlocked: false,
   _musicTimer: null,
-  _media: {},
+  _buffers: {},
+  _loading: {},
+  _sources: {},
   _currentFile: null,
 
   track: null,
@@ -103,16 +106,19 @@ const AudioEngine = {
     return this.muted;
   },
 
-  /** Desbloqueig únic després del primer gest: context + precàrrega MP3. */
+  /** Desbloqueig únic després del primer gest: context + descodifica MP3. */
   unlock() {
     if (!this.ensureCtx()) return;
-    if (!this._unlocked) {
-      this._unlocked = true;
-      for (const [name, cfg] of Object.entries(FILE_TRACKS)) {
-        this._ensureMedia(name, cfg);
+    this._waitRunning().then((ok) => {
+      if (!ok) return;
+      if (!this._unlocked) {
+        this._unlocked = true;
+        for (const [name, cfg] of Object.entries(FILE_TRACKS)) {
+          this._loadFileBuffer(name, cfg);
+        }
       }
-    }
-    this.resume();
+      this.resume();
+    });
   },
 
   freq(note) {
@@ -182,7 +188,7 @@ const AudioEngine = {
     }
   },
 
-  // ---- MP3 via elements HTML connectats al graf Web Audio ----
+  // ---- MP3 descodificats → BufferSource (funciona fora del gest de l'usuari) ----
   /** Promise que es resol quan el context d'àudio està en marxa. */
   _waitRunning() {
     if (!this.ensureCtx()) return Promise.resolve(false);
@@ -195,105 +201,90 @@ const AudioEngine = {
     return Promise.resolve(this.ctx.state === 'running');
   },
 
-  _ensureMedia(name, cfg) {
-    if (this._media[name]) return this._media[name];
-    const el = new Audio(cfg.url);
-    el.preload = 'auto';
-    if (cfg.loop) el.loop = true;
-    if ('playsInline' in el) el.playsInline = true;
-    const entry = {
-      el,
-      src: null,
-      gainNode: null,
-      gain: cfg.gain ?? 1,
-      loop: !!cfg.loop,
-      ready: false,
-      onended: null,
+  _loadFileBuffer(name, cfg) {
+    if (this._buffers[name]) return Promise.resolve(this._buffers[name]);
+    if (this._loading[name]) return this._loading[name];
+    const p = this._waitRunning().then(async (ok) => {
+      if (!ok || !this.ctx) return null;
+      try {
+        const res = await fetch(cfg.url);
+        if (!res.ok) return null;
+        const ab = await res.arrayBuffer();
+        const buf = await this.ctx.decodeAudioData(ab.slice(0));
+        this._buffers[name] = buf;
+        return buf;
+      } catch (e) {
+        return null;
+      } finally {
+        delete this._loading[name];
+      }
+    });
+    this._loading[name] = p;
+    return p;
+  },
+
+  _startBuffer(name, cfg, opts) {
+    const buf = this._buffers[name];
+    if (!buf || !this.ctx || this.ctx.state !== 'running') return false;
+    this.stopFile(name);
+    this._stopMusicTimer();
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = opts.loop != null ? !!opts.loop : !!cfg.loop;
+    const g = this.ctx.createGain();
+    g.gain.value = cfg.gain ?? 1;
+    src.connect(g);
+    g.connect(this.master);
+    src.onended = () => {
+      if (this._sources[name] && this._sources[name].source === src) {
+        delete this._sources[name];
+        if (this._currentFile === name) this._currentFile = null;
+        if (opts.onended) opts.onended();
+      }
     };
-    const markReady = () => { entry.ready = true; };
-    el.addEventListener('canplaythrough', markReady, { once: true });
-    el.addEventListener('loadeddata', markReady, { once: true });
-    el.addEventListener('ended', () => {
-      if (this._currentFile === name) this._currentFile = null;
-      const cb = entry.onended;
-      entry.onended = null;
-      if (cb) cb();
-    });
-    el.addEventListener('error', () => { entry.ready = false; });
-    el.load();
-    this._media[name] = entry;
-    return entry;
-  },
-
-  _wireMedia(name) {
-    const m = this._media[name];
-    if (!m || m.src || !this.ctx) return;
+    this._sources[name] = { source: src, gainNode: g };
+    this._currentFile = name;
     try {
-      m.src = this.ctx.createMediaElementSource(m.el);
-      m.gainNode = this.ctx.createGain();
-      m.gainNode.gain.value = m.gain;
-      m.src.connect(m.gainNode);
-      m.gainNode.connect(this.master);
-    } catch (e) { /* ja connectat */ }
+      src.start(0);
+      return true;
+    } catch (e) {
+      return false;
+    }
   },
 
-  _waitMediaReady(name) {
-    const m = this._media[name];
-    if (!m) return Promise.resolve(false);
-    if (m.ready || m.el.readyState >= 3) return Promise.resolve(true);
-    return new Promise((res) => {
-      const done = (ok) => { if (ok) m.ready = true; res(ok); };
-      m.el.addEventListener('canplaythrough', () => done(true), { once: true });
-      m.el.addEventListener('error', () => done(false), { once: true });
-      setTimeout(() => done(m.el.readyState >= 2), 8000);
-    });
-  },
-
-  /** Reprodueix un MP3 pel graf Web Audio (descodificació nativa del navegador). */
+  /** Reprodueix un MP3 (BufferSource — no requereix gest actiu). */
   playFile(name, opts = {}) {
     const cfg = FILE_TRACKS[name];
     if (!cfg) return Promise.resolve(false);
     return this._waitRunning().then((ok) => {
       if (!ok) return false;
-      if (!this._unlocked) this.unlock();
-      const m = this._ensureMedia(name, cfg);
-      return this._waitMediaReady(name).then((ready) => {
-        if (!ready) return false;
-        this._wireMedia(name);
-        this.stopFile(name);
-        m.onended = opts.onended || null;
-        if (opts.loop != null) m.el.loop = !!opts.loop;
-        if (m.gainNode) m.gainNode.gain.value = m.gain;
-        try { m.el.currentTime = 0; } catch (e) {}
-        this._stopMusicTimer();
-        this._currentFile = name;
-        const p = m.el.play();
-        if (p && typeof p.then === 'function') {
-          return p.then(() => true).catch(() => false);
-        }
-        return true;
+      if (this._buffers[name]) return this._startBuffer(name, cfg, opts);
+      return this._loadFileBuffer(name, cfg).then((buf) => {
+        if (!buf) return false;
+        return this._startBuffer(name, cfg, opts);
       });
     });
   },
 
   stopFile(name) {
-    const m = this._media[name];
-    if (!m) return;
-    m.onended = null;
-    try {
-      m.el.pause();
-      m.el.currentTime = 0;
-    } catch (e) {}
+    const s = this._sources[name];
+    if (s) {
+      try { s.source.onended = null; s.source.stop(); } catch (e) {}
+      delete this._sources[name];
+    }
     if (this._currentFile === name) this._currentFile = null;
   },
 
   stopAllFiles() {
-    for (const name of Object.keys(this._media)) this.stopFile(name);
+    for (const name of Object.keys(this._sources)) this.stopFile(name);
   },
 
   isFilePlaying(name) {
-    const m = this._media[name];
-    return !!(m && !m.el.paused);
+    return !!this._sources[name];
+  },
+
+  hasFileBuffer(name) {
+    return !!this._buffers[name];
   },
 
   setTrack(name) {
