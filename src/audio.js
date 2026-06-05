@@ -258,18 +258,32 @@ const AudioEngine = {
     this.track = null;
   },
 
-  /** Inici síncron quan el buffer ja està carregat (ús in-game). */
+  /** Inici quan el buffer ja està carregat (ús in-game). Retorna true només si arrenca. */
   playFileNow(name, opts = {}) {
     const cfg = FILE_TRACKS[name];
     if (!cfg) return false;
-    const run = () => {
-      if (this._buffers[name]) return this._startBuffer(name, cfg, opts);
-      this.playFile(name, opts);
-      return false;
+    if (!this._unlocked) this.unlock();
+    if (!this.ensureCtx()) return false;
+    this.started = true;
+
+    const tryStart = () => {
+      if (!this._buffers[name] || !this.ctx || this.ctx.state !== 'running') return false;
+      return this._startBuffer(name, cfg, opts);
     };
-    if (this.ctx && this.ctx.state === 'running') return run();
-    this._waitRunning().then((ok) => { if (ok) run(); });
-    return true;
+
+    if (tryStart()) return true;
+
+    if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
+      const p = this.ctx.resume();
+      const after = () => tryStart();
+      if (p && typeof p.then === 'function') p.then(after);
+      else after();
+    } else if (!this._buffers[name]) {
+      this._loadFileBuffer(name, cfg).then((buf) => {
+        if (buf) tryStart();
+      });
+    }
+    return false;
   },
 
   /** Reprodueix un MP3 (BufferSource — no requereix gest actiu). */
