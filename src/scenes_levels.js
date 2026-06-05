@@ -170,9 +170,9 @@ function createLevel(cfg) {
         if (cfg.musicFile === 'wedding') {
           AudioEngine.stopChiptune();
           // #region agent log
-          console.log('[WM-PRE]', typeof Assets, typeof Assets.playWeddingMarch);
+          console.log('[WM-DIRECT] requestFile weddingMarch', {ctxState:AudioEngine.ctx?AudioEngine.ctx.state:'null',hasBuffer:AudioEngine.hasFileBuffer('weddingMarch')});
           // #endregion
-          Assets.playWeddingMarch();
+          AudioEngine.requestFile('weddingMarch');
         } else {
           AudioEngine.setTrack(cfg.track);
         }

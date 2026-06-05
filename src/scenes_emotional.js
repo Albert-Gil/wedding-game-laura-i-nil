@@ -98,7 +98,7 @@ registerScene('reunion', () => {
   return {
     enter() {
       AudioEngine.stopChiptune();
-      Assets.playWeddingMarch();
+      AudioEngine.requestFile('weddingMarch');
       AudioEngine.resume();
       Achievements.unlock('has_arribat');
     },
@@ -206,7 +206,7 @@ registerScene('finalwalk', () => {
   return {
     enter() {
       AudioEngine.stopChiptune();
-      Assets.playWeddingMarch();
+      AudioEngine.requestFile('weddingMarch');
       AudioEngine.resume();
     },
     update(dt) {
