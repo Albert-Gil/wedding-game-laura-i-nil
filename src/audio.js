@@ -238,12 +238,12 @@ const AudioEngine = {
         const buf = await this.ctx.decodeAudioData(ab.slice(0));
         this._buffers[name] = buf;
         // #region agent log
-        fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_loadFileBuffer',message:'decoded OK',data:{name,duration:buf.duration},timestamp:Date.now(),hypothesisId:'H-F'})}).catch(()=>{});
+        console.log('[WM-BUF] decoded OK', name, 'duration:', buf.duration);
         // #endregion
         return buf;
       } catch (e) {
         // #region agent log
-        fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_loadFileBuffer',message:'decode FAILED',data:{name,err:String(e)},timestamp:Date.now(),hypothesisId:'H-F'})}).catch(()=>{});
+        console.error('[WM-BUF] decode FAILED', name, String(e));
         // #endregion
         return null;
       } finally {
@@ -260,7 +260,7 @@ const AudioEngine = {
     this.stopFile(name);
     this._stopMusicTimer();
     // #region agent log
-    if (name === 'weddingMarch') fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_startBuffer',message:'_startBuffer weddingMarch',data:{ctxState:this.ctx.state,bufDuration:buf.duration,masterGain:this.master?this.master.gain.value:null,muted:this.muted},timestamp:Date.now(),hypothesisId:'H-H H-I'})}).catch(()=>{});
+    if (name === 'weddingMarch') console.log('[WM3] _startBuffer', {ctxState:this.ctx.state,bufDuration:buf.duration,masterGain:this.master?this.master.gain.value:null,muted:this.muted});
     // #endregion
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
@@ -281,12 +281,12 @@ const AudioEngine = {
     try {
       src.start(0);
       // #region agent log
-      if (name === 'weddingMarch') fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_startBuffer',message:'src.start OK weddingMarch',data:{ctxStateAfter:this.ctx.state,currentFile:this._currentFile},timestamp:Date.now(),hypothesisId:'H-H'})}).catch(()=>{});
+      if (name === 'weddingMarch') console.log('[WM4] src.start OK', {ctxStateAfter:this.ctx.state,currentFile:this._currentFile});
       // #endregion
       return true;
     } catch (e) {
       // #region agent log
-      if (name === 'weddingMarch') fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_startBuffer',message:'src.start THREW weddingMarch',data:{err:String(e)},timestamp:Date.now(),hypothesisId:'H-H'})}).catch(()=>{});
+      if (name === 'weddingMarch') console.error('[WM4] src.start THREW', String(e));
       // #endregion
       return false;
     }
@@ -373,7 +373,7 @@ const AudioEngine = {
     this._stopMusicTimer();
     const next = TRACKS[name] || null;
     // #region agent log
-    if (this._currentFile || this._fileQueue) fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:setTrack',message:'setTrack while file active',data:{name,currentFile:this._currentFile,fileQueue:JSON.stringify(this._fileQueue),nextExists:!!next},timestamp:Date.now(),hypothesisId:'H-J'})}).catch(()=>{});
+    if (this._currentFile === 'weddingMarch' || (this._fileQueue && this._fileQueue.name === 'weddingMarch')) console.warn('[WM-J] setTrack called while weddingMarch active/queued', {name,currentFile:this._currentFile,fileQueue:this._fileQueue?this._fileQueue.name:null,nextExists:!!next});
     // #endregion
     if (next) this.stopAllFiles();
     this.track = next;
