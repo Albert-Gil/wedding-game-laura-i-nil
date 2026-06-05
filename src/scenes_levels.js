@@ -169,6 +169,9 @@ function createLevel(cfg) {
         // #endregion
         if (cfg.musicFile === 'wedding') {
           AudioEngine.stopChiptune();
+          // #region agent log
+          console.log('[WM-PRE]', typeof Assets, typeof Assets.playWeddingMarch);
+          // #endregion
           Assets.playWeddingMarch();
         } else {
           AudioEngine.setTrack(cfg.track);
