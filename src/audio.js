@@ -237,14 +237,8 @@ const AudioEngine = {
         const ab = await res.arrayBuffer();
         const buf = await this.ctx.decodeAudioData(ab.slice(0));
         this._buffers[name] = buf;
-        // #region agent log
-        fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_loadFileBuffer',message:'buffer decoded OK',data:{name,duration:buf.duration},timestamp:Date.now(),hypothesisId:'H-B'})}).catch(()=>{});
-        // #endregion
         return buf;
       } catch (e) {
-        // #region agent log
-        fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_loadFileBuffer',message:'buffer decode FAILED',data:{name,err:String(e)},timestamp:Date.now(),hypothesisId:'H-B'})}).catch(()=>{});
-        // #endregion
         return null;
       } finally {
         delete this._loading[name];
@@ -259,9 +253,6 @@ const AudioEngine = {
     if (!buf || !this.ctx) return false;
     this.stopFile(name);
     this._stopMusicTimer();
-    // #region agent log
-    fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_startBuffer',message:'_startBuffer attempting src.start',data:{name,ctxState:this.ctx.state,bufDuration:buf.duration},timestamp:Date.now(),hypothesisId:'H-C'})}).catch(()=>{});
-    // #endregion
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     src.loop = opts.loop != null ? !!opts.loop : !!cfg.loop;
@@ -280,14 +271,8 @@ const AudioEngine = {
     this._currentFile = name;
     try {
       src.start(0);
-      // #region agent log
-      fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_startBuffer',message:'src.start OK',data:{name,masterGain:this.master?this.master.gain.value:null},timestamp:Date.now(),hypothesisId:'H-C'})}).catch(()=>{});
-      // #endregion
       return true;
     } catch (e) {
-      // #region agent log
-      fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_startBuffer',message:'src.start THREW',data:{name,err:String(e)},timestamp:Date.now(),hypothesisId:'H-C'})}).catch(()=>{});
-      // #endregion
       return false;
     }
   },
@@ -306,9 +291,6 @@ const AudioEngine = {
     if (!this.ensureCtx()) return false;
     this._stopMusicTimer();
     this._fileQueue = { name, opts };
-    // #region agent log
-    fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:requestFile',message:'requestFile called',data:{name,ctxState:this.ctx?this.ctx.state:'null',unlocked:this._unlocked,hasBuffer:!!this._buffers[name],isLoading:!!this._loading[name]},timestamp:Date.now(),hypothesisId:'H-A'})}).catch(()=>{});
-    // #endregion
     return this._tryPlayQueued();
   },
 
@@ -317,9 +299,6 @@ const AudioEngine = {
     const { name, opts } = this._fileQueue;
     const cfg = FILE_TRACKS[name];
     if (!cfg) { this._fileQueue = null; return false; }
-    // #region agent log
-    fetch('http://127.0.0.1:7575/ingest/0601c362-6bbf-4fa6-b7b1-8f77e1b3c1ef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f609e6'},body:JSON.stringify({sessionId:'f609e6',location:'audio.js:_tryPlayQueued',message:'_tryPlayQueued',data:{name,ctxState:this.ctx.state,hasBuffer:!!this._buffers[name],isLoading:!!this._loading[name]},timestamp:Date.now(),hypothesisId:'H-A H-B'})}).catch(()=>{});
-    // #endregion
     if (this.ctx.state !== 'running') return false;
     if (!this._buffers[name]) {
       this._loadFileBuffer(name, cfg).then(() => this._tryPlayQueued());
